@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">SaborForáneo</string>
+
+    <!-- Navegación -->
+    <string name="nav_inicio">Inicio</string>
+    <string name="nav_buscar">Buscar</string>
+    <string name="nav_favoritos">Favoritos</string>
+    <string name="nav_perfil">Perfil</string>
+
+    <!-- Autenticación -->
+    <string name="login_titulo">Iniciar Sesión</string>
+    <string name="login_subtitulo">Bienvenido de vuelta</string>
+    <string name="registro_titulo">Crear Cuenta</string>
+    <string name="campo_email">Email</string>
+    <string name="campo_password">Contraseña</string>
+    <string name="campo_nombre">Nombre completo</string>
+    <string name="boton_login">Iniciar Sesión</string>
+    <string name="boton_registro">Registrarse</string>
+
+    <!-- Recetas -->
+    <string name="recetas_destacadas">Recetas Destacadas</string>
+    <string name="categorias">Categorías</string>
+    <string name="ingredientes">Ingredientes</string>
+    <string name="preparacion">Preparación</string>
+    <string name="tiempo_preparacion">Tiempo de preparación</string>
+    <string name="porciones">Porciones</string>
+    <string name="dificultad">Dificultad</string>
+
+    <!-- Errores -->
+    <string name="error_campos_vacios">Por favor completa todos los campos</string>
+    <string name="error_email_invalido">Email inválido</string>
+    <string name="error_password_corta">La contraseña debe tener al menos 6 caracteres</string>
+    <string name="error_receta_no_encontrada">Receta no encontrada</string>
+
+    <!-- Mensajes -->
+    <string name="sin_favoritos">Aún no tienes favoritos</string>
+    <string name="sin_resultados">No se encontraron recetas</string>
+    <string name="cerrar_sesion">Cerrar Sesión</string>
+</resources>

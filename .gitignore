@@ -1,0 +1,42 @@
+# Android / Kotlin / Jetpack Compose .gitignore
+
+# ===== ARCHIVOS CRÍTICOS - NO SUBIR =====
+# Archivo de configuración de Firebase (contiene claves de API)
+google-services.json
+app/google-services.json
+
+# Propiedades locales (rutas del SDK de Android)
+local.properties
+
+# ===== IntelliJ / Android Studio =====
+*.iml
+.gradle/
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/deploymentTargetSelector.xml
+
+# ===== Build / Compilación =====
+/build/
+/app/build/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ===== Logs =====
+*.log
+
+# ===== macOS =====
+.DS_Store
+
+# ===== C++ / NDK =====
+.externalNativeBuild/
+.cxx/
+
+# ===== Kotlin =====
+.kotlin/

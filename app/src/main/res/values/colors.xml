@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="marron_700">#6D4C41</color>
+    <color name="marron_500">#8D6E63</color>
+    <color name="marron_300">#BCAAA4</color>
+
+    <color name="naranja_profundo_400">#FF7043</color>
+    <color name="naranja_profundo_200">#FFAB91</color>
+
+    <color name="verde_300">#81C784</color>
+    <color name="verde_100">#C8E6C9</color>
+
+    <color name="fondo_claro">#FFF8F5</color>
+    <color name="fondo_oscuro">#121212</color>
+
+    <color name="error">#EF5350</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
