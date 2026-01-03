@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">SaborForáneo</string>
 
+    <!-- Google Sign-In -->
+    <string name="default_web_client_id">1098339713468-buna5vpboqiiv3fc6q9jbtsmgteomm94.apps.googleusercontent.com</string>
+
     <!-- Navegación -->
     <string name="nav_inicio">Inicio</string>
     <string name="nav_buscar">Buscar</string>

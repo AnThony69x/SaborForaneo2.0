@@ -1,5 +1,9 @@
 package com.example.saborforaneo.ui.screens.auth
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,12 +11,15 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -22,9 +29,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.saborforaneo.util.Constantes
+import com.example.saborforaneo.R
+import com.example.saborforaneo.ui.components.DialogoEstablecerContrasena
 import com.example.saborforaneo.viewmodel.AuthState
 import com.example.saborforaneo.viewmodel.AuthViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,22 +54,55 @@ fun PantallaRegistro(
     var confirmarPasswordVisible by remember { mutableStateOf(false) }
     var aceptaTerminos by remember { mutableStateOf(false) }
     var mensajeError by remember { mutableStateOf("") }
-    var mostrarSnackbar by remember { mutableStateOf(false) }
 
+    // Estados para el diálogo de contraseña de Google
+    var mostrarDialogoContrasena by remember { mutableStateOf(false) }
+    var datosGooglePendientes by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val authState by authViewModel.authState.collectAsState()
     val esAdmin by authViewModel.esAdmin.collectAsState()
 
+    // Configurar Google Sign-In
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    // Establecer el GoogleSignInClient en el ViewModel
+    LaunchedEffect(googleSignInClient) {
+        authViewModel.setGoogleSignInClient(googleSignInClient)
+    }
+
+    // Launcher para el inicio de sesión con Google
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                account.idToken?.let { idToken ->
+                    authViewModel.iniciarSesionConGoogle(idToken)
+                }
+            } catch (e: ApiException) {
+                mensajeError = "Error al registrarse con Google: ${e.message}"
+            }
+        }
+    }
+
     // Observar el estado de autenticación
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
                 if (state.user != null) {
-                    // Limpiar errores
                     mensajeError = ""
-                    // Redirigir según el rol del usuario
                     if (esAdmin) {
                         navegarAAdmin()
                     } else {
@@ -69,16 +113,19 @@ fun PantallaRegistro(
             }
             is AuthState.Error -> {
                 mensajeError = state.message
-                mostrarSnackbar = true
                 snackbarHostState.showSnackbar(
                     message = state.message,
                     duration = SnackbarDuration.Long
                 )
             }
+            is AuthState.NecesitaContrasena -> {
+                datosGooglePendientes = Triple(state.email, state.nombre, state.idToken)
+                mostrarDialogoContrasena = true
+                authViewModel.resetAuthState()
+            }
             else -> {}
         }
     }
-
 
     val cargando = authState is AuthState.Loading
 
@@ -121,7 +168,7 @@ fun PantallaRegistro(
                 navigationIcon = {
                     IconButton(onClick = navegarAtras) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver"
                         )
                     }
@@ -164,7 +211,7 @@ fun PantallaRegistro(
 
             OutlinedTextField(
                 value = nombre,
-                onValueChange = { 
+                onValueChange = {
                     nombre = it
                     if (mensajeError.isNotEmpty()) mensajeError = ""
                 },
@@ -184,6 +231,7 @@ fun PantallaRegistro(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 singleLine = true,
+                enabled = !cargando,
                 isError = mensajeError.isNotEmpty() && mensajeError.contains("nombre", ignoreCase = true),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -192,7 +240,7 @@ fun PantallaRegistro(
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { 
+                onValueChange = {
                     email = it
                     if (mensajeError.isNotEmpty()) mensajeError = ""
                 },
@@ -212,6 +260,7 @@ fun PantallaRegistro(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 singleLine = true,
+                enabled = !cargando,
                 isError = mensajeError.isNotEmpty() && mensajeError.contains("email", ignoreCase = true),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -220,7 +269,7 @@ fun PantallaRegistro(
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { 
+                onValueChange = {
                     password = it
                     if (mensajeError.isNotEmpty()) mensajeError = ""
                 },
@@ -258,6 +307,7 @@ fun PantallaRegistro(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 singleLine = true,
+                enabled = !cargando,
                 isError = mensajeError.isNotEmpty() && mensajeError.contains("contraseña", ignoreCase = true) && !mensajeError.contains("coinciden"),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -266,7 +316,7 @@ fun PantallaRegistro(
 
             OutlinedTextField(
                 value = confirmarPassword,
-                onValueChange = { 
+                onValueChange = {
                     confirmarPassword = it
                     if (mensajeError.isNotEmpty()) mensajeError = ""
                 },
@@ -306,6 +356,7 @@ fun PantallaRegistro(
                     }
                 ),
                 singleLine = true,
+                enabled = !cargando,
                 isError = mensajeError.isNotEmpty() && mensajeError.contains("coinciden"),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -318,7 +369,8 @@ fun PantallaRegistro(
             ) {
                 Checkbox(
                     checked = aceptaTerminos,
-                    onCheckedChange = { aceptaTerminos = it }
+                    onCheckedChange = { aceptaTerminos = it },
+                    enabled = !cargando
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -376,6 +428,58 @@ fun PantallaRegistro(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text(
+                    text = "  O  ",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botón de Google Sign-In
+            OutlinedButton(
+                onClick = {
+                    val signInIntent = googleSignInClient.signInIntent
+                    googleSignInLauncher.launch(signInIntent)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                enabled = !cargando,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "G",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4285F4)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Continuar con Google",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
@@ -395,4 +499,27 @@ fun PantallaRegistro(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+
+    // Mostrar diálogo para establecer contraseña si es necesario
+    if (mostrarDialogoContrasena && datosGooglePendientes != null) {
+        val (emailGoogle, nombreGoogle, idTokenGoogle) = datosGooglePendientes!!
+        DialogoEstablecerContrasena(
+            email = emailGoogle,
+            nombre = nombreGoogle,
+            onConfirmar = { passwordNueva ->
+                authViewModel.completarRegistroConGoogle(
+                    email = emailGoogle,
+                    nombre = nombreGoogle,
+                    password = passwordNueva,
+                    idToken = idTokenGoogle
+                )
+            },
+            onCancelar = {
+                mostrarDialogoContrasena = false
+                datosGooglePendientes = null
+            },
+            mostrarLoading = authState is AuthState.Loading
+        )
+    }
 }
+

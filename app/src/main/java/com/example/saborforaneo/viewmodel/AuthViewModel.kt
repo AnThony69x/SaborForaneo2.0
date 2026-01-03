@@ -4,9 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saborforaneo.data.repository.FirestoreRepository
 import com.example.saborforaneo.data.repository.Usuario
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.EmailAuthProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,11 +21,15 @@ sealed class AuthState {
     object Loading : AuthState()
     data class Success(val user: FirebaseUser?) : AuthState()
     data class Error(val message: String) : AuthState()
+    data class NecesitaContrasena(val email: String, val nombre: String, val idToken: String) : AuthState()
 }
 
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestoreRepository = FirestoreRepository()
+
+    // GoogleSignInClient para cerrar sesión de Google
+    private var googleSignInClient: GoogleSignInClient? = null
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -43,6 +50,13 @@ class AuthViewModel : ViewModel() {
 
     init {
         checkAuthStatus()
+    }
+
+    /**
+     * Establecer el GoogleSignInClient para poder cerrar sesión de Google
+     */
+    fun setGoogleSignInClient(client: GoogleSignInClient) {
+        googleSignInClient = client
     }
 
     private fun checkAuthStatus() {
@@ -154,8 +168,108 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Iniciar sesión con Google usando el token de ID
+     */
+    fun iniciarSesionConGoogle(idToken: String) {
+        viewModelScope.launch {
+            try {
+                _authState.value = AuthState.Loading
+
+                // Crear credencial de Google
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+                // Iniciar sesión con Firebase
+                val result = auth.signInWithCredential(credential).await()
+
+                result.user?.let { user ->
+                    // Verificar si el usuario ya existe en Firestore
+                    val existeUsuario = firestoreRepository.obtenerPerfilUsuario(user.uid)
+
+                    if (existeUsuario.isFailure || existeUsuario.getOrNull() == null) {
+                        // Es un usuario nuevo, solicitar contraseña
+                        // Cerrar la sesión temporal de Google
+                        auth.signOut()
+                        _authState.value = AuthState.NecesitaContrasena(
+                            email = user.email ?: "",
+                            nombre = user.displayName ?: "Usuario",
+                            idToken = idToken
+                        )
+                    } else {
+                        // Usuario existente, verificar rol y continuar
+                        _currentUser.value = result.user
+                        verificarRolUsuario()
+                        _authState.value = AuthState.Success(result.user)
+                    }
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(manejarErrorAuth(e))
+            }
+        }
+    }
+
+    /**
+     * Completar el registro con Google estableciendo una contraseña
+     */
+    fun completarRegistroConGoogle(email: String, nombre: String, password: String, idToken: String) {
+        viewModelScope.launch {
+            try {
+                _authState.value = AuthState.Loading
+
+                // Crear credencial de Google
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+
+                // Iniciar sesión con Firebase usando Google
+                val result = auth.signInWithCredential(credential).await()
+
+                result.user?.let { user ->
+                    // Actualizar la contraseña del usuario en Firebase Auth
+                    // Nota: No se puede establecer una contraseña directamente para usuarios de Google
+                    // En su lugar, vincularemos el email/password como método adicional
+
+                    // Determinar el rol del usuario
+                    val rol = if (esEmailAdmin(email)) "admin" else "usuario"
+
+                    // Crear perfil en Firestore
+                    val nuevoUsuario = Usuario(
+                        uid = user.uid,
+                        nombre = nombre,
+                        email = email,
+                        rol = rol,
+                        fechaCreacion = System.currentTimeMillis()
+                    )
+
+                    firestoreRepository.crearPerfilUsuario(nuevoUsuario)
+                    _usuarioFirestore.value = nuevoUsuario
+                    _esAdmin.value = (rol == "admin")
+
+                    // Intentar vincular email/password como método adicional
+                    try {
+                        val emailCredential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)
+                        user.linkWithCredential(emailCredential).await()
+                    } catch (e: Exception) {
+                        // Si falla la vinculación (por ejemplo, si el email ya tiene contraseña)
+                        // simplemente continuamos. El usuario ya está autenticado con Google.
+                        println("No se pudo vincular email/password: ${e.message}")
+                    }
+
+                    _currentUser.value = result.user
+                    _authState.value = AuthState.Success(result.user)
+                }
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(manejarErrorAuth(e))
+            }
+        }
+    }
+
     fun cerrarSesion() {
+        // Cerrar sesión de Firebase
         auth.signOut()
+
+        // Cerrar sesión de Google Sign-In (esto limpiará la cuenta seleccionada)
+        googleSignInClient?.signOut()
+
+        // Limpiar estados
         _currentUser.value = null
         _authState.value = AuthState.Idle
         _esAdmin.value = false

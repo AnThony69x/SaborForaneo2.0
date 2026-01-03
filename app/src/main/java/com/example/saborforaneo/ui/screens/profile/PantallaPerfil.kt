@@ -11,13 +11,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.saborforaneo.R
 import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.screens.profile.componentes.*
 import com.example.saborforaneo.ui.screens.profile.dialogos.*
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +35,21 @@ fun PantallaPerfil(
     val estado by modeloVista.estado.collectAsState()
     val estadoSnackbar = remember { SnackbarHostState() }
     val alcance = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // Configurar Google Sign-In Client para poder cerrar sesión de Google
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    // Establecer el GoogleSignInClient en el AuthViewModel
+    LaunchedEffect(googleSignInClient) {
+        authViewModel.setGoogleSignInClient(googleSignInClient)
+    }
 
     var mostrarDialogoCerrarSesion by remember { mutableStateOf(false) }
     var mostrarDialogoEditarPerfil by remember { mutableStateOf(false) }
