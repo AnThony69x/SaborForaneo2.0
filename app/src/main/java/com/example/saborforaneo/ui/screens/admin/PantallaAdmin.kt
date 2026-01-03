@@ -19,6 +19,7 @@ import com.example.saborforaneo.viewmodel.AuthViewModel
 @Composable
 fun PantallaAdmin(
     navegarALogin: () -> Unit,
+    navegarAGestionRecetas: () -> Unit,
     authViewModel: AuthViewModel = viewModel(),
     perfilViewModel: com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 ) {
@@ -159,13 +160,13 @@ fun PantallaAdmin(
                 modifier = Modifier.padding(top = 8.dp)
             )
 
-            // Tarjeta: Gestión de Recetas (Próximamente)
+            // Tarjeta: Gestión de Recetas
             TarjetaOpcionAdmin(
                 icono = Icons.Default.Restaurant,
                 titulo = "Gestión de Recetas",
                 descripcion = "Agregar, editar y eliminar recetas",
-                habilitado = false,
-                onClick = { /* TODO */ }
+                habilitado = true,
+                onClick = navegarAGestionRecetas
             )
 
             // Tarjeta: Gestión de Usuarios (Próximamente)

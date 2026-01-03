@@ -46,12 +46,20 @@ class AuthViewModel : ViewModel() {
     }
 
     private fun checkAuthStatus() {
-        _currentUser.value = auth.currentUser
-        if (auth.currentUser != null) {
-            _authState.value = AuthState.Success(auth.currentUser)
+        val usuarioActual = auth.currentUser
+        _currentUser.value = usuarioActual
+
+        if (usuarioActual != null) {
+            // Solo verificar el rol si hay un usuario autenticado
+            _authState.value = AuthState.Success(usuarioActual)
             viewModelScope.launch {
                 verificarRolUsuario()
             }
+        } else {
+            // No hay usuario autenticado, resetear todo
+            _authState.value = AuthState.Idle
+            _esAdmin.value = false
+            _usuarioFirestore.value = null
         }
     }
 
@@ -150,6 +158,8 @@ class AuthViewModel : ViewModel() {
         auth.signOut()
         _currentUser.value = null
         _authState.value = AuthState.Idle
+        _esAdmin.value = false
+        _usuarioFirestore.value = null
     }
 
     fun recuperarContrasena(email: String) {
@@ -165,7 +175,14 @@ class AuthViewModel : ViewModel() {
     }
 
     fun resetAuthState() {
+        // Solo resetear el estado, no cerrar sesión
         _authState.value = AuthState.Idle
+    }
+
+    fun limpiarTodoElEstado() {
+        // Limpiar completamente todo el estado (para cuando se va a la pantalla de login)
+        _authState.value = AuthState.Idle
+        // NO limpiar _currentUser ni _esAdmin aquí porque puede haber una sesión válida
     }
 
     /**
@@ -176,18 +193,19 @@ class AuthViewModel : ViewModel() {
         val mensaje = exception.message?.lowercase() ?: ""
         
         return when {
-            // Errores de registro
-            mensaje.contains("email-already-in-use") || 
-            mensaje.contains("already in use") -> 
-                "Este email ya está registrado. Intenta iniciar sesión."
-            
-            // Errores de autenticación
+            // Errores de autenticación - ESTOS SON LOS MÁS COMUNES
             mensaje.contains("invalid-credential") ||
             mensaje.contains("wrong-password") ||
             mensaje.contains("user-not-found") ||
-            mensaje.contains("invalid-login-credentials") -> 
+            mensaje.contains("invalid-login-credentials") ||
+            mensaje.contains("invalid_login_credentials") ->
                 "Email o contraseña incorrectos. Verifica tus datos."
-            
+
+            // Errores de registro
+            mensaje.contains("email-already-in-use") ||
+            mensaje.contains("already in use") ->
+                "Este email ya está registrado. Intenta iniciar sesión."
+
             // Email inválido
             mensaje.contains("invalid-email") ||
             mensaje.contains("badly formatted") -> 
@@ -220,16 +238,20 @@ class AuthViewModel : ViewModel() {
             mensaje.contains("email-not-verified") -> 
                 "Por favor verifica tu email antes de continuar."
             
-            // Token expirado
-            mensaje.contains("expired") -> 
-                "La sesión ha expirado. Vuelve a iniciar sesión."
-            
+            // Token expirado - SOLO para sesiones ya iniciadas, no para login
+            mensaje.contains("token") && mensaje.contains("expired") ->
+                "Tu sesión ha caducado. Por favor, inicia sesión nuevamente."
+
             // Error genérico de Firebase
             mensaje.contains("firebase") -> 
                 "Error del servidor. Intenta de nuevo más tarde."
             
             // Error desconocido
-            else -> "Error inesperado. Intenta de nuevo o contacta a soporte."
+            else -> {
+                // Log para debug (puedes ver el error real en logcat)
+                println("Error de autenticación no manejado: ${exception.message}")
+                "Error al iniciar sesión. Verifica tus credenciales e intenta de nuevo."
+            }
         }
     }
 }

@@ -27,11 +27,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import com.example.saborforaneo.data.mock.DatosMock
 import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.components.ChipFiltro
 import com.example.saborforaneo.ui.components.TarjetaReceta
 import com.example.saborforaneo.ui.components.TarjetaRecetaSkeleton
+import com.example.saborforaneo.viewmodel.HomeViewModel
+import com.example.saborforaneo.util.Categorias
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -43,8 +44,11 @@ fun PantallaInicio(
     controladorNav: NavController
 ) {
     val contexto = LocalContext.current
-    var recetasCargadas by remember { mutableStateOf(false) }
-    var mostrarSkeletons by remember { mutableStateOf(true) }
+
+    // Crear ViewModel
+    val viewModel = remember { HomeViewModel(contexto) }
+    val uiState by viewModel.uiState.collectAsState()
+
     var ubicacionTexto by remember { mutableStateOf<String?>(null) }
 
     val tienePermisoUbicacion = remember {
@@ -102,32 +106,13 @@ fun PantallaInicio(
         }
     }
 
-    LaunchedEffect(key1 = Unit) {
-        if (!recetasCargadas) {
-            DatosMock.cargarRecetas(contexto)
-            delay(100)
-            mostrarSkeletons = false
-            recetasCargadas = true
-        }
-    }
-
-    val recetas = remember(recetasCargadas) { DatosMock.recetasDestacadas }
-    val categorias = remember { DatosMock.categorias }
+    // Cargar categorías predefinidas (sin "Todas" porque se muestra manualmente)
+    val categorias = remember { Categorias.lista.filter { it.nombre != "Todas" } }
     var categoriaSeleccionada by remember { mutableStateOf<String?>(null) }
 
-    val recetasFiltradas = remember(categoriaSeleccionada, recetasCargadas) {
-        if (categoriaSeleccionada == null) {
-            recetas
-        } else {
-            when (categoriaSeleccionada) {
-                "Rápidas" -> recetas.filter { it.tiempoPreparacion <= 30 }
-                "Vegetariana" -> recetas.filter { it.esVegetariana }
-                "Económica" -> recetas.filter { it.precio.name == "ECONOMICO" }
-                else -> recetas.filter { receta ->
-                    receta.categoria.contains(categoriaSeleccionada ?: "", ignoreCase = true)
-                }
-            }
-        }
+    // Filtrar recetas según categoría seleccionada
+    val recetasFiltradas = remember(categoriaSeleccionada, uiState.recetas) {
+        viewModel.obtenerRecetasPorCategoria(categoriaSeleccionada)
     }
 
     Scaffold(
@@ -179,7 +164,8 @@ fun PantallaInicio(
             BarraNavegacionInferior(controladorNav = controladorNav)
         }
     ) { paddingValues ->
-        if (mostrarSkeletons) {
+        if (uiState.cargando) {
+            // Mostrar skeletons mientras carga
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -192,9 +178,37 @@ fun PantallaInicio(
                     )
                 }
             }
+        } else if (uiState.error != null) {
+            // Mostrar error
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Error al cargar recetas",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = uiState.error ?: "Error desconocido",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Button(onClick = { viewModel.cargarRecetas() }) {
+                        Text("Reintentar")
+                    }
+                }
+            }
         } else {
+            // Mostrar recetas con animación
             AnimatedVisibility(
-                visible = recetasCargadas,
+                visible = !uiState.cargando,
                 enter = fadeIn(animationSpec = tween(500))
             ) {
                 LazyColumn(
@@ -306,7 +320,9 @@ fun PantallaInicio(
                             ) {
                                 TarjetaReceta(
                                     receta = receta,
-                                    alHacerClic = { navegarADetalle(receta.id) },
+                                    alHacerClick = { navegarADetalle(receta.id) },
+                                    esFavorito = receta.esFavorito,
+                                    onToggleFavorito = { viewModel.toggleFavorito(it) },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }

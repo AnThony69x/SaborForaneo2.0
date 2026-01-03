@@ -47,6 +47,11 @@ fun PantallaLogin(
     val authState by authViewModel.authState.collectAsState()
     val esAdmin by authViewModel.esAdmin.collectAsState()
 
+    // Limpiar el estado cuando se carga la pantalla de login
+    LaunchedEffect(Unit) {
+        authViewModel.limpiarTodoElEstado()
+    }
+
     // Observar el estado de autenticación
     LaunchedEffect(authState) {
         when (val state = authState) {

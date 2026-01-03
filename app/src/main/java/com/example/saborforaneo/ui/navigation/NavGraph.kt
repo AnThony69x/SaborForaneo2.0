@@ -3,6 +3,8 @@ package com.example.saborforaneo.ui.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -22,7 +24,9 @@ import com.example.saborforaneo.ui.screens.profile.PantallaPerfil
 import com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 import com.example.saborforaneo.ui.screens.auth.PantallaTerminosCondiciones
 import com.example.saborforaneo.ui.screens.admin.PantallaAdmin
+import com.example.saborforaneo.ui.screens.admin.PantallaGestionRecetas
 import com.example.saborforaneo.viewmodel.AuthViewModel
+import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -178,8 +182,25 @@ fun GrafoNavegacion(
                         popUpTo(Rutas.Admin.ruta) { inclusive = true }
                     }
                 },
+                navegarAGestionRecetas = {
+                    controladorNav.navigate(Rutas.GestionRecetas.ruta)
+                },
                 authViewModel = authViewModel,
                 perfilViewModel = perfilViewModel
+            )
+        }
+
+        composable(route = Rutas.GestionRecetas.ruta) {
+            val context = LocalContext.current
+            val recetaAdminViewModel = remember {
+                RecetaAdminViewModel(context)
+            }
+            PantallaGestionRecetas(
+                viewModel = recetaAdminViewModel,
+                userId = authViewModel.currentUser.value?.uid ?: "",
+                onNavigateBack = {
+                    controladorNav.popBackStack()
+                }
             )
         }
 

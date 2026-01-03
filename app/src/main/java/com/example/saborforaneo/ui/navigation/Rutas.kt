@@ -9,6 +9,7 @@ sealed class Rutas(val ruta: String) {
     object TerminosCondiciones : Rutas("terminos_condiciones")
     object Inicio : Rutas("inicio")
     object Admin : Rutas("admin")
+    object GestionRecetas : Rutas("gestion_recetas")
     object Busqueda : Rutas("busqueda")
     object Favoritos : Rutas("favoritos")
     object Perfil : Rutas("perfil")

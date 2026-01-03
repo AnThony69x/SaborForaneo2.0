@@ -1,67 +1,35 @@
-// Reglas de seguridad de Firebase Firestore
-// Modo de prueba - Válido hasta el 31 de enero de 2026
-// 
-// IMPORTANTE: Estas reglas permiten acceso de lectura/escritura a todos los usuarios
-// durante el período de desarrollo. Debes actualizar estas reglas antes de producción.
-//
-// Para configurar estas reglas en Firebase Console:
-// 1. Ve a Firebase Console > Firestore Database
-// 2. Selecciona la pestaña "Reglas"
-// 3. Copia y pega el siguiente código
-// 4. Haz clic en "Publicar"
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if
-          request.time < timestamp.date(2026, 1, 31);
+
+    // Función para verificar si es admin
+    function esAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
     }
-  }
-}
 
-// ============================================================
-// REGLAS DE PRODUCCIÓN (Usar después del desarrollo)
-// ============================================================
-// Descomentar y usar estas reglas cuando la app esté lista para producción:
-
-/*
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // Regla para la colección de usuarios
+    // Usuarios
     match /usuarios/{userId} {
-      // Permitir lectura solo si es el propio usuario o autenticado
-      allow read: if request.auth != null;
-      
-      // Permitir escritura solo si es el propio usuario
+      allow read: if request.auth != null &&
+                     (request.auth.uid == userId || esAdmin());
       allow write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Regla para la colección de recetas
+
+    // Recetas - Todas gestionadas por admin en Firestore
     match /recetas/{recetaId} {
-      // Todos los usuarios autenticados pueden leer recetas
-      allow read: if request.auth != null;
-      
-      // Solo usuarios autenticados pueden crear recetas
-      allow create: if request.auth != null;
-      
-      // Solo el creador puede actualizar/eliminar su receta
-      allow update, delete: if request.auth != null 
-        && request.auth.uid == resource.data.creadorId;
+      allow read: if true; // Lectura pública para todos los usuarios
+      allow create: if request.auth != null && esAdmin();
+      allow update: if request.auth != null && esAdmin();
+      allow delete: if request.auth != null && esAdmin();
     }
-    
-    // Regla para la colección de favoritos
+
+    // Favoritos
     match /favoritos/{userId} {
-      // Solo el usuario puede leer sus propios favoritos
       allow read: if request.auth != null && request.auth.uid == userId;
-      
-      // Solo el usuario puede modificar sus propios favoritos
       allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
-*/
+

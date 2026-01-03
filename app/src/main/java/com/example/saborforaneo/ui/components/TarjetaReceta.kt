@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -29,15 +28,22 @@ import com.example.saborforaneo.data.model.Receta
 @Composable
 fun TarjetaReceta(
     receta: Receta,
-    alHacerClic: () -> Unit,
+    alHacerClick: () -> Unit,
     modifier: Modifier = Modifier,
-    mostrarDescripcion: Boolean = true
+    mostrarDescripcion: Boolean = true,
+    esFavorito: Boolean = receta.esFavorito,
+    onToggleFavorito: ((String) -> Unit)? = null
 ) {
     val contexto = LocalContext.current
-    var esFavoritoLocal by remember { mutableStateOf(receta.esFavorito) }
+    var esFavoritoLocal by remember(esFavorito) { mutableStateOf(esFavorito) }
 
     val escalaFavorito = remember { Animatable(1f) }
     val rotacionFavorito = remember { Animatable(0f) }
+
+    // Sincronizar con el estado externo
+    LaunchedEffect(esFavorito) {
+        esFavoritoLocal = esFavorito
+    }
 
     LaunchedEffect(esFavoritoLocal) {
         if (esFavoritoLocal) {
@@ -65,7 +71,7 @@ fun TarjetaReceta(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { alHacerClic() },
+            .clickable { alHacerClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -111,8 +117,12 @@ fun TarjetaReceta(
                     }
                 }
 
+                // Botón de favoritos
                 Surface(
-                    onClick = { esFavoritoLocal = !esFavoritoLocal },
+                    onClick = {
+                        esFavoritoLocal = !esFavoritoLocal
+                        onToggleFavorito?.invoke(receta.id)
+                    },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp)
@@ -141,6 +151,7 @@ fun TarjetaReceta(
                     )
                 }
 
+                // Categoría
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -247,3 +258,4 @@ fun TarjetaReceta(
         }
     }
 }
+

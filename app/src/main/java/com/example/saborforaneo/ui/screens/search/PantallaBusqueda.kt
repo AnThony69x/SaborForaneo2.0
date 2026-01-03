@@ -18,11 +18,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.saborforaneo.data.mock.DatosMock
 import com.example.saborforaneo.ui.components.BarraBusqueda
 import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.components.ChipFiltro
 import com.example.saborforaneo.ui.components.TarjetaReceta
+import com.example.saborforaneo.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,30 +33,22 @@ fun PantallaBusqueda(
     controladorNav: NavController
 ) {
     val contexto = LocalContext.current
-    var recetasCargadas by remember { mutableStateOf(false) }
-
-    LaunchedEffect(key1 = Unit) {
-        if (!recetasCargadas) {
-            DatosMock.cargarRecetas(contexto)
-            recetasCargadas = true
-        }
-    }
+    val viewModel = remember { HomeViewModel(contexto) }
+    val uiState by viewModel.uiState.collectAsState()
 
     var consultaBusqueda by remember { mutableStateOf("") }
     var filtroVegetariana by remember { mutableStateOf(false) }
     var filtroRapida by remember { mutableStateOf(false) }
     var filtroEconomica by remember { mutableStateOf(false) }
 
-    val todasLasRecetas = remember(recetasCargadas) { DatosMock.recetasDestacadas }
-
     val recetasFiltradas = remember(
         consultaBusqueda,
         filtroVegetariana,
         filtroRapida,
         filtroEconomica,
-        recetasCargadas
+        uiState.recetas
     ) {
-        todasLasRecetas.filter { receta ->
+        uiState.recetas.filter { receta ->
             val coincideConsulta = if (consultaBusqueda.isEmpty()) {
                 true
             } else {
@@ -100,126 +92,111 @@ fun PantallaBusqueda(
             BarraBusqueda(
                 consulta = consultaBusqueda,
                 alCambiarConsulta = { consultaBusqueda = it },
-                placeholder = "Buscar por nombre, ingrediente...",
+                placeholder = "Buscar por nombre, categoría, ingrediente...",
                 modifier = Modifier.padding(16.dp)
             )
 
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp)
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
             ) {
-                Text(
-                    text = "Filtros",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        ChipFiltro(
-                            texto = "🥗 Vegetariana",
-                            seleccionado = filtroVegetariana,
-                            alSeleccionar = { filtroVegetariana = !filtroVegetariana }
-                        )
-                    }
-                    item {
-                        ChipFiltro(
-                            texto = "⚡ Rápidas (<30 min)",
-                            seleccionado = filtroRapida,
-                            alSeleccionar = { filtroRapida = !filtroRapida }
-                        )
-                    }
-                    item {
-                        ChipFiltro(
-                            texto = "💰 Económicas",
-                            seleccionado = filtroEconomica,
-                            alSeleccionar = { filtroEconomica = !filtroEconomica }
-                        )
-                    }
+                item {
+                    ChipFiltro(
+                        texto = "🥕 Vegetariana",
+                        seleccionado = filtroVegetariana,
+                        alSeleccionar = { filtroVegetariana = !filtroVegetariana }
+                    )
+                }
+                item {
+                    ChipFiltro(
+                        texto = "⚡ Rápida",
+                        seleccionado = filtroRapida,
+                        alSeleccionar = { filtroRapida = !filtroRapida }
+                    )
+                }
+                item {
+                    ChipFiltro(
+                        texto = "💰 Económica",
+                        seleccionado = filtroEconomica,
+                        alSeleccionar = { filtroEconomica = !filtroEconomica }
+                    )
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-            if (!recetasCargadas) {
+            if (uiState.cargando) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
+            } else if (recetasFiltradas.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🔍",
+                            fontSize = 64.sp
+                        )
+                        Text(
+                            text = "No se encontraron recetas",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Intenta con otros términos de búsqueda",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item {
                         Text(
-                            text = if (consultaBusqueda.isEmpty() && !filtroVegetariana && !filtroRapida && !filtroEconomica) {
-                                "Todas las recetas (${recetasFiltradas.size})"
-                            } else {
-                                "Resultados encontrados: ${recetasFiltradas.size}"
-                            },
+                            text = "Resultados (${recetasFiltradas.size})",
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
 
-                    if (recetasFiltradas.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "🔍",
-                                        fontSize = 64.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        text = "No se encontraron recetas",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Intenta con otros términos o filtros",
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                }
-                            }
+                    itemsIndexed(
+                        items = recetasFiltradas,
+                        key = { _, receta -> receta.id }
+                    ) { index, receta ->
+                        var visible by remember { mutableStateOf(false) }
+
+                        LaunchedEffect(key1 = receta.id) {
+                            delay(index * 50L)
+                            visible = true
                         }
-                    } else {
-                        itemsIndexed(recetasFiltradas) { index, receta ->
-                            var visible by remember { mutableStateOf(false) }
 
-                            LaunchedEffect(key1 = receta.id) {
-                                delay(index * 50L)
-                                visible = true
-                            }
-
-                            AnimatedVisibility(
-                                visible = visible,
-                                enter = fadeIn(animationSpec = tween(300)) +
-                                        slideInVertically(
-                                            initialOffsetY = { it / 2 },
-                                            animationSpec = tween(300)
-                                        )
-                            ) {
-                                TarjetaReceta(
-                                    receta = receta,
-                                    alHacerClic = { navegarADetalle(receta.id) },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = slideInVertically(
+                                initialOffsetY = { it / 2 },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        ) {
+                            TarjetaReceta(
+                                receta = receta,
+                                alHacerClick = { navegarADetalle(receta.id) },
+                                esFavorito = receta.esFavorito,
+                                onToggleFavorito = { viewModel.toggleFavorito(it) },
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
                         }
                     }
                 }
@@ -227,3 +204,4 @@ fun PantallaBusqueda(
         }
     }
 }
+

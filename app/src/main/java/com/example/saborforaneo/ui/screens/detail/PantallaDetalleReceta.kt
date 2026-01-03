@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.saborforaneo.data.mock.DatosMock
+import com.example.saborforaneo.viewmodel.DetalleRecetaViewModel
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,9 +30,12 @@ fun PantallaDetalleReceta(
     recetaId: String,
     navegarAtras: () -> Unit
 ) {
-    val receta = remember { DatosMock.obtenerRecetaPorId(recetaId) }
-    var esFavorito by remember { mutableStateOf(receta?.esFavorito ?: false) }
     val contexto = LocalContext.current
+    val viewModel = remember { DetalleRecetaViewModel(contexto, recetaId) }
+    val uiState by viewModel.uiState.collectAsState()
+
+    val receta = uiState.receta
+    var esFavorito by remember { mutableStateOf(receta?.esFavorito ?: false) }
 
     val escalaImagen = remember { Animatable(0.8f) }
     val alphaImagen = remember { Animatable(0f) }
@@ -51,7 +54,36 @@ fun PantallaDetalleReceta(
         )
     }
 
-    if (receta == null) {
+    if (uiState.cargando) {
+        // Mostrar pantalla de carga
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Cargando...") },
+                    navigationIcon = {
+                        IconButton(onClick = navegarAtras) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Volver"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        return
+    }
+
+    if (receta == null || uiState.error != null) {
         Scaffold(
             topBar = {
                 TopAppBar(

@@ -80,13 +80,49 @@ cd SaborForaneo
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Función para verificar si es admin
+    function esAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // Usuarios
     match /usuarios/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId;
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || esAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Recetas
+    match /recetas/{recetaId} {
+      allow read: if true; // Lectura pública
+      allow create: if request.auth != null && esAdmin();
+      allow update: if request.auth != null && esAdmin();
+      allow delete: if request.auth != null && esAdmin();
     }
   }
 }
 ```
+
+#### Índices Requeridos en Firestore
+Debes crear estos índices manualmente en Firebase Console → Firestore → Índices:
+
+**Índice 1: Consulta de recetas activas ordenadas por fecha**
+- Colección: `recetas`
+- Campos:
+  - `activa` - Ascendente
+  - `fechaCreacion` - Descendente
+
+**Índice 2: Consulta de recetas por categoría**
+- Colección: `recetas`
+- Campos:
+  - `categoria` - Ascendente
+  - `activa` - Ascendente
+  - `fechaCreacion` - Descendente
+
+> **Nota**: Firebase te sugerirá crear estos índices automáticamente cuando ejecutes las consultas. Simplemente haz clic en el enlace que aparece en el error.
 
 #### Storage (`storage.rules`)
 ```javascript
@@ -110,12 +146,13 @@ service firebase.storage {
 | Login             | Autenticación con Firebase           |
 | Registro          | Crear cuenta + rol automático        |
 | Recuperar         | Envío de email para resetear         |
-| Home              | Recetas destacadas                   |
+| Home              | Recetas desde Firestore ordenadas por fecha |
 | Búsqueda          | Filtros avanzados                    |
 | Detalle           | Vista completa de receta             |
 | Favoritos         | Guardados en Firestore               |
 | Perfil            | Foto, nombre, tema, configuración    |
 | Admin Panel       | Solo para saborforaneo@gmail.com     |
+| Gestión Recetas   | CRUD de recetas (solo admin)         |
 
 ## 🔑 Credenciales Admin
 - **Email**: `saborforaneo@gmail.com`
@@ -155,6 +192,11 @@ local.properties             # Rutas locales del SDK
 - [x] Limpieza de estado al cerrar sesión
 - [x] Animaciones de navegación
 - [x] Notificaciones locales
+- [x] **Todas las recetas almacenadas en Firestore**
+- [x] **CRUD completo de recetas para admin**
+- [x] **Sistema de búsqueda y filtros (16 categorías)**
+- [x] **Sistema de favoritos sincronizado**
+- [x] **Categorías 100% sincronizadas (usuario = admin)**
 
 ## 👨‍💻 Autor
 **AnThony69x**
