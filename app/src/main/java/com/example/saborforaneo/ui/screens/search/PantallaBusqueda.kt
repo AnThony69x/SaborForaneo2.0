@@ -30,11 +30,15 @@ import kotlinx.coroutines.delay
 fun PantallaBusqueda(
     navegarADetalle: (String) -> Unit,
     navegarAtras: () -> Unit,
-    controladorNav: NavController
+    controladorNav: NavController,
+    homeViewModel: HomeViewModel
 ) {
-    val contexto = LocalContext.current
-    val viewModel = remember { HomeViewModel(contexto) }
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by homeViewModel.uiState.collectAsState()
+
+    // Recargar favoritos cada vez que navegas de regreso a esta pantalla
+    LaunchedEffect(Unit) {
+        homeViewModel.recargarFavoritos()
+    }
 
     var consultaBusqueda by remember { mutableStateOf("") }
     var filtroVegetariana by remember { mutableStateOf(false) }
@@ -194,7 +198,7 @@ fun PantallaBusqueda(
                                 receta = receta,
                                 alHacerClick = { navegarADetalle(receta.id) },
                                 esFavorito = receta.esFavorito,
-                                onToggleFavorito = { viewModel.toggleFavorito(it) },
+                                onToggleFavorito = { homeViewModel.toggleFavorito(it) },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                         }

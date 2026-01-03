@@ -63,6 +63,11 @@ class HomeViewModel(context: Context) : ViewModel() {
             }
         }
     }
+    
+    // Función pública para recargar favoritos desde las pantallas
+    fun recargarFavoritos() {
+        cargarFavoritos()
+    }
 
     private fun marcarFavoritos(recetas: List<Receta>): List<Receta> {
         val favoritos = _uiState.value.idsFavoritos

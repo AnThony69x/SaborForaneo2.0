@@ -27,6 +27,7 @@ import com.example.saborforaneo.ui.screens.admin.PantallaAdmin
 import com.example.saborforaneo.ui.screens.admin.PantallaGestionRecetas
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
+import com.example.saborforaneo.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -35,8 +36,12 @@ fun GrafoNavegacion(
     pantallaInicio: String = Rutas.Splash.ruta,
     perfilViewModel: PerfilViewModel
 ) {
-    // Crear una instancia compartida del AuthViewModel para todas las pantallas de auth
+    val context = LocalContext.current
+    
+    // Crear instancias compartidas de ViewModels para todas las pantallas
     val authViewModel: AuthViewModel = viewModel()
+    val homeViewModel = remember { HomeViewModel(context) }
+    
     NavHost(
         navController = controladorNav,
         startDestination = pantallaInicio,
@@ -212,7 +217,8 @@ fun GrafoNavegacion(
                 navegarABusqueda = {
                     controladorNav.navigate(Rutas.Busqueda.ruta)
                 },
-                controladorNav = controladorNav
+                controladorNav = controladorNav,
+                homeViewModel = homeViewModel
             )
         }
 
@@ -224,7 +230,8 @@ fun GrafoNavegacion(
                 navegarAtras = {
                     controladorNav.popBackStack()
                 },
-                controladorNav = controladorNav
+                controladorNav = controladorNav,
+                homeViewModel = homeViewModel
             )
         }
 

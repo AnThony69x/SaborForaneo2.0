@@ -29,6 +29,11 @@ fun PantallaFavoritos(
     val viewModel = remember { FavoritosViewModel(contexto) }
     val uiState by viewModel.uiState.collectAsState()
 
+    // Recargar favoritos cada vez que se navega a esta pantalla
+    LaunchedEffect(Unit) {
+        viewModel.cargarFavoritos()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

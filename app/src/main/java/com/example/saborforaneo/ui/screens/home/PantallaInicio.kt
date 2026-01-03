@@ -41,13 +41,18 @@ import java.util.Locale
 fun PantallaInicio(
     navegarADetalle: (String) -> Unit,
     navegarABusqueda: () -> Unit,
-    controladorNav: NavController
+    controladorNav: NavController,
+    homeViewModel: HomeViewModel
 ) {
     val contexto = LocalContext.current
 
-    // Crear ViewModel
-    val viewModel = remember { HomeViewModel(contexto) }
-    val uiState by viewModel.uiState.collectAsState()
+    // Usar el ViewModel compartido
+    val uiState by homeViewModel.uiState.collectAsState()
+
+    // Recargar favoritos cada vez que navegas de regreso a esta pantalla
+    LaunchedEffect(Unit) {
+        homeViewModel.recargarFavoritos()
+    }
 
     var ubicacionTexto by remember { mutableStateOf<String?>(null) }
 
@@ -112,7 +117,7 @@ fun PantallaInicio(
 
     // Filtrar recetas según categoría seleccionada
     val recetasFiltradas = remember(categoriaSeleccionada, uiState.recetas) {
-        viewModel.obtenerRecetasPorCategoria(categoriaSeleccionada)
+        homeViewModel.obtenerRecetasPorCategoria(categoriaSeleccionada)
     }
 
     Scaffold(
@@ -200,7 +205,7 @@ fun PantallaInicio(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
-                    Button(onClick = { viewModel.cargarRecetas() }) {
+                    Button(onClick = { homeViewModel.cargarRecetas() }) {
                         Text("Reintentar")
                     }
                 }
@@ -322,7 +327,7 @@ fun PantallaInicio(
                                     receta = receta,
                                     alHacerClick = { navegarADetalle(receta.id) },
                                     esFavorito = receta.esFavorito,
-                                    onToggleFavorito = { viewModel.toggleFavorito(it) },
+                                    onToggleFavorito = { homeViewModel.toggleFavorito(it) },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }
