@@ -40,3 +40,6 @@ captures/
 
 # ===== Kotlin =====
 .kotlin/
+
+# Secret file with local backend URL (do not commit)
+/secrets.properties

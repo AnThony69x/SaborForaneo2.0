@@ -14,13 +14,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,6 +37,7 @@ import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.components.ChipFiltro
 import com.example.saborforaneo.ui.components.TarjetaReceta
 import com.example.saborforaneo.ui.components.TarjetaRecetaSkeleton
+import com.example.saborforaneo.ui.screens.chat.PantallaChat
 import com.example.saborforaneo.viewmodel.HomeViewModel
 import com.example.saborforaneo.util.Categorias
 import kotlinx.coroutines.delay
@@ -53,6 +60,9 @@ fun PantallaInicio(
     LaunchedEffect(Unit) {
         homeViewModel.recargarFavoritos()
     }
+
+    // Estado para controlar el diálogo del chat
+    var mostrarChat by remember { mutableStateOf(false) }
 
     var ubicacionTexto by remember { mutableStateOf<String?>(null) }
 
@@ -120,7 +130,33 @@ fun PantallaInicio(
         homeViewModel.obtenerRecetasPorCategoria(categoriaSeleccionada)
     }
 
-    Scaffold(
+    // Animaciones para el botón flotante
+    val infiniteTransition = rememberInfiniteTransition(label = "float_animation")
+
+    // Animación de escala (pulsación)
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    // Animación de rotación suave
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = -5f,
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "rotation"
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -156,6 +192,7 @@ fun PantallaInicio(
                     }
                 },
                 actions = {
+
                     IconButton(onClick = navegarABusqueda) {
                         Icon(
                             imageVector = Icons.Default.Restaurant,
@@ -334,6 +371,51 @@ fun PantallaInicio(
                         }
                     }
                 }
+            }
+        }
+    }
+
+        // Botón flotante animado para el Chat con IA (más pequeño, en la parte inferior)
+        FloatingActionButton(
+            onClick = { mostrarChat = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 100.dp, end = 16.dp)
+                .size(48.dp)
+                .scale(scale)
+                .rotate(rotation),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shape = CircleShape,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = 6.dp,
+                pressedElevation = 12.dp
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.SmartToy,
+                contentDescription = "Chat con Chef AI",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+
+    // Diálogo del Chat con Gemini
+    if (mostrarChat) {
+        Dialog(
+            onDismissRequest = { mostrarChat = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                PantallaChat(
+                    onDismiss = { mostrarChat = false }
+                )
             }
         }
     }
