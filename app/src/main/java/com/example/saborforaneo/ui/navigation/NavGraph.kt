@@ -130,7 +130,7 @@ fun GrafoNavegacion(
                     }
                 },
                 navegarAAdmin = {
-                    controladorNav.navigate(Rutas.Admin.ruta) {
+                    controladorNav.navigate(Rutas.InicioAdmin.ruta) {
                         popUpTo(Rutas.Login.ruta) { inclusive = true }
                     }
                 },
