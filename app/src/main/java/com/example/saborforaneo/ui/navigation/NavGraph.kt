@@ -97,7 +97,7 @@ fun GrafoNavegacion(
                     }
                 },
                 navegarAAdmin = {
-                    controladorNav.navigate(Rutas.Admin.ruta) {
+                    controladorNav.navigate(Rutas.InicioAdmin.ruta) {
                         popUpTo(Rutas.Splash.ruta) { inclusive = true }
                     }
                 },
@@ -180,6 +180,37 @@ fun GrafoNavegacion(
             )
         }
 
+        // ========== PANTALLAS ADMIN CON BARRA INFERIOR ==========
+        
+        composable(route = Rutas.InicioAdmin.ruta) {
+            com.example.saborforaneo.ui.screens.admin.PantallaInicioAdmin(
+                controladorNav = controladorNav,
+                authViewModel = authViewModel
+            )
+        }
+
+        composable(route = Rutas.EstadisticasAdmin.ruta) {
+            com.example.saborforaneo.ui.screens.admin.PantallaEstadisticasAdmin(
+                controladorNav = controladorNav
+            )
+        }
+
+        composable(route = Rutas.PerfilAdmin.ruta) {
+            com.example.saborforaneo.ui.screens.admin.PantallaPerfilAdmin(
+                navegarALogin = {
+                    controladorNav.navigate(Rutas.Login.ruta) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                controladorNav = controladorNav,
+                authViewModel = authViewModel,
+                perfilViewModel = perfilViewModel
+            )
+        }
+
+        // ========== PANTALLAS ADMIN SIN BARRA (GESTIÓN) ==========
+
+        // Ruta Admin antigua - redirige a InicioAdmin
         composable(route = Rutas.Admin.ruta) {
             PantallaAdmin(
                 navegarALogin = {
@@ -190,8 +221,33 @@ fun GrafoNavegacion(
                 navegarAGestionRecetas = {
                     controladorNav.navigate(Rutas.GestionRecetas.ruta)
                 },
+                navegarADashboard = {
+                    controladorNav.navigate(Rutas.Dashboard.ruta)
+                },
+                navegarAGestionUsuarios = {
+                    controladorNav.navigate(Rutas.GestionUsuarios.ruta)
+                },
                 authViewModel = authViewModel,
                 perfilViewModel = perfilViewModel
+            )
+        }
+
+        composable(route = Rutas.Dashboard.ruta) {
+            val context = LocalContext.current
+            val adminViewModel = remember {
+                com.example.saborforaneo.viewmodel.AdminViewModel(context)
+            }
+            com.example.saborforaneo.ui.screens.admin.PantallaDashboard(
+                viewModel = adminViewModel,
+                onNavigateBack = {
+                    controladorNav.popBackStack()
+                }
+            )
+        }
+
+        composable(route = Rutas.GestionUsuarios.ruta) {
+            com.example.saborforaneo.ui.screens.admin.PantallaGestionUsuarios(
+                controladorNav = controladorNav
             )
         }
 
@@ -203,9 +259,7 @@ fun GrafoNavegacion(
             PantallaGestionRecetas(
                 viewModel = recetaAdminViewModel,
                 userId = authViewModel.currentUser.value?.uid ?: "",
-                onNavigateBack = {
-                    controladorNav.popBackStack()
-                }
+                controladorNav = controladorNav
             )
         }
 

@@ -14,8 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.saborforaneo.data.model.Receta
+import com.example.saborforaneo.ui.components.BarraNavegacionInferiorAdmin
 import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,7 +25,7 @@ import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
 fun PantallaGestionRecetas(
     viewModel: RecetaAdminViewModel,
     userId: String,
-    onNavigateBack: () -> Unit
+    controladorNav: NavController
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var mostrarDialogoAgregar by remember { mutableStateOf(false) }
@@ -54,17 +56,19 @@ fun PantallaGestionRecetas(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gestión de Recetas") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
-                    }
+                title = { 
+                    Text(
+                        "Gestión de Recetas",
+                        fontWeight = FontWeight.Bold
+                    ) 
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+        },
+        bottomBar = {
+            BarraNavegacionInferiorAdmin(controladorNav = controladorNav)
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(

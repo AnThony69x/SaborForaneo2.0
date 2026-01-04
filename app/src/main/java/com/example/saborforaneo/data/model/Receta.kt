@@ -19,7 +19,12 @@ data class Receta(
     // Campos para gestión en Firestore
     val creadoPor: String = "admin",
     val fechaCreacion: Long = System.currentTimeMillis(),
-    val activa: Boolean = true
+    val activa: Boolean = true,
+    // Campo de moderación
+    val estadoModeracion: EstadoModeracion = EstadoModeracion.PENDIENTE,
+    val moderadoPor: String = "",
+    val fechaModeracion: Long = 0L,
+    val motivoRechazo: String = ""
 ) {
     // Conversión de enum a String para Firestore
     fun toMap(): Map<String, Any> {
@@ -41,9 +46,19 @@ data class Receta(
             "precio" to precio.name,
             "creadoPor" to creadoPor,
             "fechaCreacion" to fechaCreacion,
-            "activa" to activa
+            "activa" to activa,
+            "estadoModeracion" to estadoModeracion.name,
+            "moderadoPor" to moderadoPor,
+            "fechaModeracion" to fechaModeracion,
+            "motivoRechazo" to motivoRechazo
         )
     }
+}
+
+enum class EstadoModeracion {
+    PENDIENTE,
+    APROBADA,
+    RECHAZADA
 }
 
 enum class Dificultad {
