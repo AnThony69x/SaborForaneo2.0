@@ -20,6 +20,7 @@ data class Usuario(
     val notificacionesActivas: Boolean = true,
     val ubicacionActiva: Boolean = false,
     val temaOscuro: Boolean = false,
+    val modoTema: String = "AUTOMATICO", // AUTOMATICO, CLARO, OSCURO
     val temaColor: String = "VERDE" // VERDE, ROJO, AZUL, NARANJA, MORADO
 )
 
@@ -215,6 +216,14 @@ class FirestoreRepository {
     suspend fun actualizarTemaOscuro(activo: Boolean): Result<Unit> {
         val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Usuario no autenticado"))
         return actualizarCampoUsuario(uid, "temaOscuro", activo)
+    }
+
+    /**
+     * Actualizar modo de tema (AUTOMATICO, CLARO, OSCURO)
+     */
+    suspend fun actualizarModoTema(modoTema: String): Result<Unit> {
+        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Usuario no autenticado"))
+        return actualizarCampoUsuario(uid, "modoTema", modoTema)
     }
 
     // ==================== FOTO DE PERFIL ====================

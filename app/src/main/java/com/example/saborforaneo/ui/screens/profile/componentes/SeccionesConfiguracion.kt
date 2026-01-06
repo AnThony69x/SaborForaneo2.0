@@ -12,13 +12,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.saborforaneo.ui.screens.profile.TemaColor
+import com.example.saborforaneo.ui.screens.profile.ModoTema
 
 @Composable
 fun SeccionPreferencias(
-    temaOscuro: Boolean,
+    modoTema: ModoTema,
     notificaciones: Boolean,
     temaColor: TemaColor,
-    alCambiarTema: (Boolean) -> Unit,
+    alCambiarModoTema: (ModoTema) -> Unit,
     alCambiarNotificaciones: (Boolean) -> Unit,
     alAbrirSelectorTema: () -> Unit
 ) {
@@ -38,13 +39,31 @@ fun SeccionPreferencias(
 
     ItemConfiguracion(
         icono = Icons.Default.DarkMode,
-        titulo = "Tema Oscuro",
-        descripcion = if (temaOscuro) "Activado" else "Desactivado",
+        titulo = "Modo de Tema",
+        descripcion = modoTema.nombreMostrar,
         contenidoExtra = {
-            Switch(
-                checked = temaOscuro,
-                onCheckedChange = alCambiarTema
-            )
+            // Chips para seleccionar modo de tema
+            androidx.compose.foundation.layout.Row(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+            ) {
+                ModoTema.entries.forEach { modo ->
+                    FilterChip(
+                        selected = modoTema == modo,
+                        onClick = { alCambiarModoTema(modo) },
+                        label = {
+                            Text(
+                                text = when (modo) {
+                                    ModoTema.AUTOMATICO -> "🔄"
+                                    ModoTema.CLARO -> "☀️"
+                                    ModoTema.OSCURO -> "🌙"
+                                },
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        modifier = Modifier.height(36.dp)
+                    )
+                }
+            }
         }
     )
 

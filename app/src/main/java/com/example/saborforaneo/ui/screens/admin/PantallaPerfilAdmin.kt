@@ -18,6 +18,7 @@ import com.example.saborforaneo.ui.components.BarraNavegacionInferiorAdmin
 import com.example.saborforaneo.ui.screens.profile.componentes.*
 import com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 import com.example.saborforaneo.ui.screens.profile.TemaColor
+import com.example.saborforaneo.ui.screens.profile.ModoTema
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -158,13 +159,18 @@ fun PantallaPerfilAdmin(
             // Preferencias
             item {
                 SeccionPreferencias(
-                    temaOscuro = estado.temaOscuro,
+                    modoTema = estado.modoTema,
                     temaColor = estado.temaColorSeleccionado,
-                    alCambiarTema = { activado ->
-                        perfilViewModel.cambiarTemaOscuro(activado)
+                    alCambiarModoTema = { modo ->
+                        perfilViewModel.cambiarModoTema(modo)
+                        val mensaje = when (modo) {
+                            ModoTema.AUTOMATICO -> "🔄 Tema automático (según sistema)"
+                            ModoTema.CLARO -> "☀️ Tema claro activado"
+                            ModoTema.OSCURO -> "🌙 Tema oscuro activado"
+                        }
                         alcance.launch {
                             estadoSnackbar.showSnackbar(
-                                message = if (activado) "🌙 Tema oscuro activado" else "☀️ Tema claro activado",
+                                message = mensaje,
                                 duration = SnackbarDuration.Short
                             )
                         }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun PantallaBusqueda(
     navegarADetalle: (String) -> Unit,
+    navegarAComunidad: () -> Unit,
     navegarAtras: () -> Unit,
     controladorNav: NavController,
     homeViewModel: HomeViewModel
@@ -82,6 +84,17 @@ fun PantallaBusqueda(
                         )
                     }
                 }
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = navegarAComunidad,
+                icon = {
+                    Icon(Icons.Default.People, "Comunidad")
+                },
+                text = { Text("Comunidad") },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
         },
         bottomBar = {

@@ -11,11 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.example.saborforaneo.data.model.Dificultad
 import com.example.saborforaneo.data.model.Precio
 import com.example.saborforaneo.data.model.Receta
@@ -169,6 +171,82 @@ fun DialogoFormularioReceta(
                                 placeholder = { Text("https://images.unsplash.com/...") },
                                 supportingText = { Text("Usa una imagen de Unsplash o similar", style = MaterialTheme.typography.bodySmall) }
                             )
+
+                            // Vista previa de la imagen
+                            if (imagenUrl.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                var imagenCargada by remember(imagenUrl) { mutableStateOf(false) }
+                                var errorCarga by remember(imagenUrl) { mutableStateOf(false) }
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(250.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (errorCarga) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.BrokenImage,
+                                                    contentDescription = "Error",
+                                                    modifier = Modifier.size(64.dp),
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    "No se pudo cargar la imagen",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                                Text(
+                                                    "Verifica que la URL sea correcta",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        } else {
+                                            AsyncImage(
+                                                model = imagenUrl,
+                                                contentDescription = "Vista previa",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop,
+                                                onSuccess = {
+                                                    imagenCargada = true
+                                                    errorCarga = false
+                                                },
+                                                onError = {
+                                                    imagenCargada = false
+                                                    errorCarga = true
+                                                }
+                                            )
+
+                                            if (!imagenCargada && !errorCarga) {
+                                                CircularProgressIndicator()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (imagenCargada) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "✓ Imagen cargada correctamente",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 

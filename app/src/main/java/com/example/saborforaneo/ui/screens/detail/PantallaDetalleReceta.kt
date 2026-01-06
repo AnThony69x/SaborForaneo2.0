@@ -1,5 +1,6 @@
 package com.example.saborforaneo.ui.screens.detail
 
+import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -150,7 +151,46 @@ fun PantallaDetalleReceta(
                             tint = if (esFavorito) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = {
+                        receta?.let { recetaActual ->
+                            // Crear texto para compartir
+                            val textoCompartir = buildString {
+                                append("🍳 ${recetaActual.nombre}\n\n")
+                                append("📝 ${recetaActual.descripcion}\n\n")
+                                append("⏱️ Tiempo: ${recetaActual.tiempoPreparacion} min\n")
+                                append("🍽️ Porciones: ${recetaActual.porciones}\n")
+                                append("📊 Dificultad: ${recetaActual.dificultad.name}\n\n")
+
+                                if (recetaActual.ingredientes.isNotEmpty()) {
+                                    append("🥗 Ingredientes:\n")
+                                    recetaActual.ingredientes.forEachIndexed { index, ingrediente ->
+                                        append("${index + 1}. $ingrediente\n")
+                                    }
+                                    append("\n")
+                                }
+
+                                if (recetaActual.pasos.isNotEmpty()) {
+                                    append("👨‍🍳 Pasos:\n")
+                                    recetaActual.pasos.forEachIndexed { index, paso ->
+                                        append("${index + 1}. $paso\n")
+                                    }
+                                }
+
+                                append("\n¡Comparte esta deliciosa receta de SaborForáneo! 🎉")
+                            }
+
+                            // Crear Intent para compartir
+                            val intentCompartir = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Receta: ${recetaActual.nombre}")
+                                putExtra(Intent.EXTRA_TEXT, textoCompartir)
+                            }
+
+                            // Mostrar selector de apps para compartir
+                            val chooser = Intent.createChooser(intentCompartir, "Compartir receta vía...")
+                            contexto.startActivity(chooser)
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Compartir"

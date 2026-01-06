@@ -16,6 +16,7 @@ class StorageRepository {
     companion object {
         const val FOLDER_USUARIOS = "usuarios"
         const val FOLDER_RECETAS = "recetas"
+        const val FOLDER_RECETAS_COMUNIDAD = "recetasComunidad"
         const val FOLDER_TEMP = "temp"
     }
 
@@ -134,6 +135,52 @@ class StorageRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    // ==================== IMÁGENES DE RECETAS COMUNIDAD ====================
+
+    /**
+     * Subir imagen de receta de comunidad
+     * @param imageUri URI de la imagen a subir
+     * @param userId ID del usuario que sube la receta
+     * @return URL de descarga
+     */
+    suspend fun subirImagenRecetaComunidad(
+        imageUri: Uri,
+        userId: String
+    ): Result<String> {
+        return try {
+            val fileName = "comunidad_${System.currentTimeMillis()}_${UUID.randomUUID()}.jpg"
+
+            val storageRef = storage.reference
+                .child("$FOLDER_RECETAS_COMUNIDAD/$userId/$fileName")
+
+            // Subir imagen
+            storageRef.putFile(imageUri).await()
+
+            // Obtener URL de descarga
+            val downloadUrl = storageRef.downloadUrl.await()
+
+            Result.success(downloadUrl.toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Eliminar imagen de receta de comunidad
+     * @param imageUrl URL de la imagen a eliminar
+     */
+    suspend fun eliminarImagenRecetaComunidad(imageUrl: String): Result<Unit> {
+        return try {
+            if (imageUrl.isNotEmpty() && imageUrl.contains("firebase")) {
+                val storageRef = storage.getReferenceFromUrl(imageUrl)
+                storageRef.delete().await()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.success(Unit)
         }
     }
 

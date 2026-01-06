@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -77,8 +78,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Determinar si usar tema oscuro según el modo seleccionado
+            val esTemaOscuro = when (estadoPerfil.modoTema) {
+                com.example.saborforaneo.ui.screens.profile.ModoTema.AUTOMATICO -> isSystemInDarkTheme()
+                com.example.saborforaneo.ui.screens.profile.ModoTema.OSCURO -> true
+                com.example.saborforaneo.ui.screens.profile.ModoTema.CLARO -> false
+            }
+
             SaborForaneoTheme(
-                temaOscuro = estadoPerfil.temaOscuro,
+                temaOscuro = esTemaOscuro,
                 colorPrimario = estadoPerfil.temaColorSeleccionado.colorPrimario
             ) {
                 Surface(

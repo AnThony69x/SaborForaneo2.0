@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,7 +7,13 @@ plugins {
 
     // Add the Google services Gradle plugin
     id("com.google.gms.google-services")
+}
 
+val secretsPropsFile = rootProject.file("secrets.properties")
+val secretsProps = Properties()
+if (secretsPropsFile.exists()) {
+    // Usar inputStream() en lugar de java.io.FileInputStream para Kotlin DSL
+    secretsProps.load(secretsPropsFile.inputStream())
 }
 
 android {
@@ -23,6 +31,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Exponer la URL del backend como BuildConfig (se lee desde secrets.properties si existe)
+        val geminiUrl = secretsProps.getProperty("GEMINI_BASE_URL") ?: "https://chatagent-saborforaneofork-production.up.railway.app/"
+        buildConfigField("String", "GEMINI_BASE_URL", "\"$geminiUrl\"")
     }
 
     buildTypes {
@@ -46,6 +58,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Habilitar BuildConfig para poder usar buildConfigField
+        buildConfig = true
     }
 
     composeOptions {
@@ -112,6 +126,12 @@ dependencies {
 
     // Add the dependencies for any other desired Firebase products
     // https://firebase.google.com/docs/android/setup#available-libraries
+
+    // Retrofit para API REST
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Accompanist (para funcionalidades adicionales)
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")

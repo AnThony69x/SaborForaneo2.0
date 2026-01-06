@@ -155,13 +155,18 @@ fun PantallaPerfil(
             // ========== PREFERENCIAS ==========
             item {
                 SeccionPreferencias(
-                    temaOscuro = estado.temaOscuro,
+                    modoTema = estado.modoTema,
                     temaColor = estado.temaColorSeleccionado,
-                    alCambiarTema = { activado ->
-                        modeloVista.cambiarTemaOscuro(activado)
+                    alCambiarModoTema = { modo ->
+                        modeloVista.cambiarModoTema(modo)
+                        val mensaje = when (modo) {
+                            ModoTema.AUTOMATICO -> "🔄 Tema automático (según sistema)"
+                            ModoTema.CLARO -> "☀️ Tema claro activado"
+                            ModoTema.OSCURO -> "🌙 Tema oscuro activado"
+                        }
                         alcance.launch {
                             estadoSnackbar.showSnackbar(
-                                message = if (activado) "🌙 Tema oscuro activado" else "☀️ Tema claro activado",
+                                message = mensaje,
                                 duration = SnackbarDuration.Short
                             )
                         }

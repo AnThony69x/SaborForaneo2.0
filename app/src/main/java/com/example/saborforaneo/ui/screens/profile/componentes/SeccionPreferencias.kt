@@ -10,12 +10,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.saborforaneo.ui.screens.profile.TemaColor
+import com.example.saborforaneo.ui.screens.profile.ModoTema
 
 @Composable
 fun SeccionPreferencias(
-    temaOscuro: Boolean,
+    modoTema: ModoTema,
     temaColor: TemaColor,
-    alCambiarTema: (Boolean) -> Unit,
+    alCambiarModoTema: (ModoTema) -> Unit,
     alAbrirSelectorTema: () -> Unit
 ) {
     Column(
@@ -36,7 +37,8 @@ fun SeccionPreferencias(
                 .padding(vertical = 4.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            onClick = { /* Abrir diálogo de selección de modo */ }
         ) {
             Row(
                 modifier = Modifier
@@ -56,21 +58,39 @@ fun SeccionPreferencias(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Tema Oscuro",
+                            text = "Modo de Tema",
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Text(
-                            text = if (temaOscuro) "Activado" else "Desactivado",
+                            text = modoTema.nombreMostrar,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                Switch(
-                    checked = temaOscuro,
-                    onCheckedChange = alCambiarTema
-                )
+                // Selector de modo de tema
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ModoTema.entries.forEach { modo ->
+                        FilterChip(
+                            selected = modoTema == modo,
+                            onClick = { alCambiarModoTema(modo) },
+                            label = {
+                                Text(
+                                    text = when (modo) {
+                                        ModoTema.AUTOMATICO -> "🔄"
+                                        ModoTema.CLARO -> "☀️"
+                                        ModoTema.OSCURO -> "🌙"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
             }
         }
 

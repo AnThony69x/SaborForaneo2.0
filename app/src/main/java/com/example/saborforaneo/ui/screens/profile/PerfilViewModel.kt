@@ -21,6 +21,12 @@ enum class TemaColor(val nombreMostrar: String, val colorPrimario: Long) {
     MORADO("Morado Chef", 0xFF8E24AA)
 }
 
+enum class ModoTema(val nombreMostrar: String) {
+    AUTOMATICO("Automático (Sistema)"),
+    CLARO("Claro"),
+    OSCURO("Oscuro")
+}
+
 data class EstadoPerfil(
     val uid: String = "",
     val nombreUsuario: String = "",
@@ -28,6 +34,7 @@ data class EstadoPerfil(
     val fotoPerfil: String = "",
     val rol: String = "usuario",
     val temaOscuro: Boolean = false,
+    val modoTema: ModoTema = ModoTema.AUTOMATICO,
     val notificacionesActivas: Boolean = true,
     val ubicacionActiva: Boolean = false,
     val temaColorSeleccionado: TemaColor = TemaColor.VERDE,
@@ -109,6 +116,11 @@ class PerfilViewModel : ViewModel() {
                             fotoPerfil = usuario.fotoPerfil,
                             rol = usuario.rol,
                             temaOscuro = usuario.temaOscuro,
+                            modoTema = try {
+                                ModoTema.valueOf(usuario.modoTema)
+                            } catch (e: Exception) {
+                                ModoTema.AUTOMATICO
+                            },
                             notificacionesActivas = usuario.notificacionesActivas,
                             ubicacionActiva = usuario.ubicacionActiva,
                             temaColorSeleccionado = try {
@@ -283,6 +295,18 @@ class PerfilViewModel : ViewModel() {
             )
             if (resultado.isSuccess) {
                 _estado.value = _estado.value.copy(temaColorSeleccionado = tema)
+            }
+        }
+    }
+
+    /**
+     * Cambiar modo de tema (Automático, Claro, Oscuro)
+     */
+    fun cambiarModoTema(modo: ModoTema) {
+        viewModelScope.launch {
+            val resultado = firestoreRepository.actualizarModoTema(modo.name)
+            if (resultado.isSuccess) {
+                _estado.value = _estado.value.copy(modoTema = modo)
             }
         }
     }

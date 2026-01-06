@@ -25,6 +25,8 @@ import com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 import com.example.saborforaneo.ui.screens.auth.PantallaTerminosCondiciones
 import com.example.saborforaneo.ui.screens.admin.PantallaAdmin
 import com.example.saborforaneo.ui.screens.admin.PantallaGestionRecetas
+import com.example.saborforaneo.ui.screens.community.PantallaComunidad
+import com.example.saborforaneo.ui.screens.community.PantallaDetalleRecetaComunidad
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
 import com.example.saborforaneo.viewmodel.HomeViewModel
@@ -284,6 +286,9 @@ fun GrafoNavegacion(
                 navegarAtras = {
                     controladorNav.popBackStack()
                 },
+                navegarAComunidad = {
+                    controladorNav.navigate(Rutas.Comunidad.ruta)
+                },
                 controladorNav = controladorNav,
                 homeViewModel = homeViewModel
             )
@@ -339,6 +344,52 @@ fun GrafoNavegacion(
                 controladorNav = controladorNav,
                 modeloVista = perfilViewModel,
                 authViewModel = authViewModel
+            )
+        }
+
+        composable(route = Rutas.Comunidad.ruta) {
+            PantallaComunidad(
+                navegarAtras = {
+                    controladorNav.popBackStack()
+                },
+                navegarACrearReceta = {
+                    controladorNav.navigate(Rutas.CrearRecetaComunidad.ruta)
+                },
+                navegarADetalle = { recetaId, scrollToComments ->
+                    controladorNav.navigate(Rutas.DetalleRecetaComunidad.crearRuta(recetaId, scrollToComments))
+                },
+                controladorNav = controladorNav
+            )
+        }
+
+        composable(route = Rutas.CrearRecetaComunidad.ruta) {
+            com.example.saborforaneo.ui.screens.community.PantallaCrearReceta(
+                navegarAtras = {
+                    controladorNav.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Rutas.DetalleRecetaComunidad.ruta,
+            arguments = listOf(
+                navArgument("recetaId") {
+                    type = NavType.StringType
+                },
+                navArgument("scrollToComments") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            )
+        ) { backStackEntry ->
+            val recetaId = backStackEntry.arguments?.getString("recetaId") ?: ""
+            val scrollToComments = backStackEntry.arguments?.getBoolean("scrollToComments") ?: false
+            PantallaDetalleRecetaComunidad(
+                recetaId = recetaId,
+                scrollToComments = scrollToComments,
+                navegarAtras = {
+                    controladorNav.popBackStack()
+                }
             )
         }
     }
