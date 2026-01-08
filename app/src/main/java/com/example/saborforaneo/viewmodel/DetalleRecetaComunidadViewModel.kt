@@ -414,5 +414,36 @@ class DetalleRecetaComunidadViewModel : ViewModel() {
     fun desactivarScrollAComentarios() {
         _uiState.value = _uiState.value.copy(scrollToComments = false)
     }
+
+    /**
+     * Alternar favorito de receta de comunidad
+     */
+    fun alternarFavorito(recetaId: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.value.receta?.let { receta ->
+                    val nuevoEstado = !receta.esFavorito
+                    
+                    // Actualizar en el repositorio
+                    val resultado = comunidadRepository.actualizarFavoritoRecetaComunidad(recetaId, nuevoEstado)
+                    
+                    if (resultado.isSuccess) {
+                        // Actualizar el estado local inmediatamente
+                        _uiState.value = _uiState.value.copy(
+                            receta = receta.copy(esFavorito = nuevoEstado)
+                        )
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            error = "Error al actualizar favorito"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Error: ${e.message}"
+                )
+            }
+        }
+    }
 }
 

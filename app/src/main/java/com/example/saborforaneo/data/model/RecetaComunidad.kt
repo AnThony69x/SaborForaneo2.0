@@ -15,7 +15,9 @@ data class RecetaComunidad(
     val esVegana: Boolean = false,
 
     // Campos específicos de comunidad
+    val autorId: String = "", // Alias para autorUid
     val autorUid: String = "",
+    val nombreAutor: String = "", // Alias para autorNombre
     val autorNombre: String = "",
     val autorFoto: String = "",
     val fechaCreacion: Long = System.currentTimeMillis(),
@@ -23,9 +25,18 @@ data class RecetaComunidad(
     val comentarios: Int = 0,
     val usuariosQueLikean: List<String> = emptyList(),
 
-    // Estado
+    // Estado de moderación
     val activa: Boolean = true,
-    val moderada: Boolean = true
+    val moderada: Boolean = true,
+    val publicada: Boolean = false,
+    val rechazada: Boolean = false,
+    val fechaPublicacion: Long = 0,
+    
+    // Estadísticas
+    val totalFavoritos: Int = 0,
+    
+    // Favorito del usuario actual
+    val esFavorito: Boolean = false
 ) {
     fun toMap(): Map<String, Any> {
         return mapOf(
@@ -41,7 +52,9 @@ data class RecetaComunidad(
             "pasos" to pasos,
             "esVegetariana" to esVegetariana,
             "esVegana" to esVegana,
+            "autorId" to (autorId.ifEmpty { autorUid }),
             "autorUid" to autorUid,
+            "nombreAutor" to (nombreAutor.ifEmpty { autorNombre }),
             "autorNombre" to autorNombre,
             "autorFoto" to autorFoto,
             "fechaCreacion" to fechaCreacion,
@@ -49,7 +62,11 @@ data class RecetaComunidad(
             "comentarios" to comentarios,
             "usuariosQueLikean" to usuariosQueLikean,
             "activa" to activa,
-            "moderada" to moderada
+            "moderada" to moderada,
+            "publicada" to publicada,
+            "rechazada" to rechazada,
+            "fechaPublicacion" to fechaPublicacion,
+            "totalFavoritos" to totalFavoritos
         )
     }
 }

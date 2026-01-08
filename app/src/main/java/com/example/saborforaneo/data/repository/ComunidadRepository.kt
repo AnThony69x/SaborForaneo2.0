@@ -24,6 +24,19 @@ class ComunidadRepository {
     }
 
     /**
+     * Obtener lista de IDs de recetas favoritas del usuario actual
+     */
+    private suspend fun obtenerFavoritosUsuario(): List<String> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return emptyList()
+            val userDoc = db.collection("usuarios").document(uid).get().await()
+            (userDoc.get("favoritosComunidad") as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
      * Observar recetas de la comunidad en tiempo real
      */
     fun observarRecetasComunidad(): Flow<List<RecetaComunidad>> = callbackFlow {
@@ -56,15 +69,21 @@ class ComunidadRepository {
                             pasos = (doc.get("pasos") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
                             esVegetariana = doc.getBoolean("esVegetariana") ?: false,
                             esVegana = doc.getBoolean("esVegana") ?: false,
-                            autorUid = doc.getString("autorUid") ?: "",
-                            autorNombre = doc.getString("autorNombre") ?: "",
+                            autorId = doc.getString("autorId") ?: doc.getString("autorUid") ?: "",
+                            autorUid = doc.getString("autorUid") ?: doc.getString("autorId") ?: "",
+                            nombreAutor = doc.getString("nombreAutor") ?: doc.getString("autorNombre") ?: "",
+                            autorNombre = doc.getString("autorNombre") ?: doc.getString("nombreAutor") ?: "",
                             autorFoto = doc.getString("autorFoto") ?: "",
                             fechaCreacion = doc.getLong("fechaCreacion") ?: System.currentTimeMillis(),
                             likes = doc.getLong("likes")?.toInt() ?: 0,
                             comentarios = doc.getLong("comentarios")?.toInt() ?: 0,
                             usuariosQueLikean = (doc.get("usuariosQueLikean") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
                             activa = doc.getBoolean("activa") ?: true,
-                            moderada = doc.getBoolean("moderada") ?: true
+                            moderada = doc.getBoolean("moderada") ?: true,
+                            publicada = doc.getBoolean("publicada") ?: false,
+                            rechazada = doc.getBoolean("rechazada") ?: false,
+                            fechaPublicacion = doc.getLong("fechaPublicacion") ?: 0,
+                            totalFavoritos = doc.getLong("totalFavoritos")?.toInt() ?: 0
                         )
                     } catch (e: Exception) {
                         null
@@ -176,9 +195,23 @@ class ComunidadRepository {
                 return Result.failure(Exception("Debes proporcionar una URL de imagen"))
             }
 
+            // Preservar campos de moderación existentes
+            val publicada = doc.getBoolean("publicada") ?: false
+            val rechazada = doc.getBoolean("rechazada") ?: false
+            val fechaPublicacion = doc.getLong("fechaPublicacion") ?: 0
+            val totalFavoritos = doc.getLong("totalFavoritos")?.toInt() ?: 0
+
+            // Crear mapa actualizado preservando campos de moderación
+            val recetaActualizada = receta.copy(
+                publicada = publicada,
+                rechazada = rechazada,
+                fechaPublicacion = fechaPublicacion,
+                totalFavoritos = totalFavoritos
+            )
+
             db.collection(COLLECTION_RECETAS_COMUNIDAD)
                 .document(recetaId)
-                .set(receta.toMap())
+                .set(recetaActualizada.toMap())
                 .await()
 
             Result.success(Unit)
@@ -464,6 +497,9 @@ class ComunidadRepository {
     suspend fun obtenerRecetaDetalle(recetaId: String): Result<RecetaComunidad?> {
         return try {
             val doc = db.collection(COLLECTION_RECETAS_COMUNIDAD).document(recetaId).get().await()
+            
+            // Obtener lista de favoritos del usuario
+            val favoritosUsuario = obtenerFavoritosUsuario()
 
             val receta = if (doc.exists()) {
                 RecetaComunidad(
@@ -491,13 +527,37 @@ class ComunidadRepository {
                     comentarios = doc.getLong("comentarios")?.toInt() ?: 0,
                     usuariosQueLikean = (doc.get("usuariosQueLikean") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
                     activa = doc.getBoolean("activa") ?: true,
-                    moderada = doc.getBoolean("moderada") ?: true
+                    moderada = doc.getBoolean("moderada") ?: true,
+                    esFavorito = favoritosUsuario.contains(recetaId)
                 )
             } else {
                 null
             }
 
             Result.success(receta)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Actualizar estado de favorito de una receta de comunidad
+     */
+    suspend fun actualizarFavoritoRecetaComunidad(recetaId: String, esFavorito: Boolean): Result<Unit> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Usuario no autenticado"))
+            
+            val userDoc = db.collection("usuarios").document(uid)
+            
+            if (esFavorito) {
+                // Agregar a favoritos
+                userDoc.update("favoritosComunidad", FieldValue.arrayUnion(recetaId)).await()
+            } else {
+                // Quitar de favoritos
+                userDoc.update("favoritosComunidad", FieldValue.arrayRemove(recetaId)).await()
+            }
+            
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

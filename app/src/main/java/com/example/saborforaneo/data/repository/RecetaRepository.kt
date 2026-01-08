@@ -150,6 +150,22 @@ class RecetaRepository(private val context: Context) {
     }
 
     /**
+     * Actualizar estado de favorito de una receta
+     */
+    suspend fun actualizarFavorito(recetaId: String, esFavorito: Boolean): Result<Unit> {
+        return try {
+            recetasCollection.document(recetaId)
+                .update("esFavorito", esFavorito)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Obtener todas las recetas (para panel de gestión del admin)
      */
     suspend fun obtenerRecetasAdmin(): Result<List<Receta>> {

@@ -29,7 +29,7 @@ sealed class ItemNavegacionAdmin(
 
     object UsuariosAdmin : ItemNavegacionAdmin(
         ruta = Rutas.GestionUsuarios.ruta,
-        titulo = "Usuarios",
+        titulo = "Comunidad",
         icono = Icons.Default.People
     )
 

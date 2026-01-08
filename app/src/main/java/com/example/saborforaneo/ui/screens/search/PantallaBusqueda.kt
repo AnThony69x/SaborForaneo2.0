@@ -23,6 +23,7 @@ import com.example.saborforaneo.ui.components.BarraBusqueda
 import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.components.ChipFiltro
 import com.example.saborforaneo.ui.components.TarjetaReceta
+import com.example.saborforaneo.util.ValidacionConstantes
 import com.example.saborforaneo.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
 
@@ -92,9 +93,9 @@ fun PantallaBusqueda(
                 icon = {
                     Icon(Icons.Default.People, "Comunidad")
                 },
-                text = { Text("Comunidad") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                text = { Text("Comunidad", fontWeight = FontWeight.Bold) },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         },
         bottomBar = {

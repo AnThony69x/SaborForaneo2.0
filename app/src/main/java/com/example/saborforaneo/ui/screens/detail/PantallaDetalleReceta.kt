@@ -36,7 +36,7 @@ fun PantallaDetalleReceta(
     val uiState by viewModel.uiState.collectAsState()
 
     val receta = uiState.receta
-    var esFavorito by remember { mutableStateOf(receta?.esFavorito ?: false) }
+    val esFavorito = receta?.esFavorito ?: false
 
     val escalaImagen = remember { Animatable(0.8f) }
     val alphaImagen = remember { Animatable(0f) }
@@ -143,7 +143,7 @@ fun PantallaDetalleReceta(
                 },
                 actions = {
                     IconButton(onClick = {
-                        esFavorito = !esFavorito
+                        viewModel.alternarFavorito()
                     }) {
                         Icon(
                             imageVector = if (esFavorito) Icons.Default.Favorite else Icons.Default.FavoriteBorder,

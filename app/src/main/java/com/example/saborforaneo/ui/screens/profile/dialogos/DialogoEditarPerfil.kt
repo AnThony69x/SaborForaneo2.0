@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.saborforaneo.util.ValidacionConstantes
 
 @Composable
 fun DialogoEditarPerfil(
@@ -52,8 +53,10 @@ fun DialogoEditarPerfil(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = {
-                        nombre = it
-                        mensajeError = ""
+                        if (it.length <= ValidacionConstantes.NOMBRE_USUARIO_MAX) {
+                            nombre = it
+                            mensajeError = ""
+                        }
                     },
                     label = { Text("Nombre completo") },
                     placeholder = { Text("Tu nombre") },
@@ -102,8 +105,10 @@ fun DialogoEditarPerfil(
                 OutlinedTextField(
                     value = nuevaContrasena,
                     onValueChange = {
-                        nuevaContrasena = it
-                        mensajeError = ""
+                        if (it.length <= ValidacionConstantes.PASSWORD_MAX) {
+                            nuevaContrasena = it
+                            mensajeError = ""
+                        }
                     },
                     label = { Text("Nueva contraseña") },
                     placeholder = { Text("Dejar vacío para no cambiar") },
@@ -129,8 +134,10 @@ fun DialogoEditarPerfil(
                 OutlinedTextField(
                     value = confirmarContrasena,
                     onValueChange = {
-                        confirmarContrasena = it
-                        mensajeError = ""
+                        if (it.length <= ValidacionConstantes.PASSWORD_MAX) {
+                            confirmarContrasena = it
+                            mensajeError = ""
+                        }
                     },
                     label = { Text("Confirmar contraseña") },
                     placeholder = { Text("Repite la nueva contraseña") },

@@ -84,6 +84,20 @@ fun PantallaDetalleRecetaComunidad(
                     }
                 },
                 actions = {
+                    // Botón de favoritos
+                    uiState.receta?.let { receta ->
+                        IconButton(onClick = {
+                            viewModel.alternarFavorito(receta.id)
+                        }) {
+                            Icon(
+                                imageVector = if (receta.esFavorito) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (receta.esFavorito) "Quitar de favoritos" else "Agregar a favoritos",
+                                tint = if (receta.esFavorito) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    
+                    // Botón de compartir
                     IconButton(onClick = {
                         uiState.receta?.let { receta ->
                             // Crear texto para compartir

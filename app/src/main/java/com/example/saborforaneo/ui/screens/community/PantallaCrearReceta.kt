@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,10 +20,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.saborforaneo.util.Categorias
+import com.example.saborforaneo.util.ValidacionConstantes
+import com.example.saborforaneo.util.validarLongitudMax
+import com.example.saborforaneo.util.esURLImagenValida
+import com.example.saborforaneo.util.esNumeroEnRango
+import com.example.saborforaneo.util.contarLineasNoVacias
+import com.example.saborforaneo.util.porcentajeDeUso
 import com.example.saborforaneo.viewmodel.ComunidadViewModel
 import kotlinx.coroutines.launch
 
@@ -73,9 +81,21 @@ fun PantallaCrearReceta(
                                 }
                                 return@TextButton
                             }
+                            if (!nombre.validarLongitudMax(ValidacionConstantes.NOMBRE_RECETA_MAX)) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("El nombre no puede exceder ${ValidacionConstantes.NOMBRE_RECETA_MAX} caracteres")
+                                }
+                                return@TextButton
+                            }
                             if (descripcion.isBlank()) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Por favor ingresa una descripción")
+                                }
+                                return@TextButton
+                            }
+                            if (!descripcion.validarLongitudMax(ValidacionConstantes.DESCRIPCION_MAX)) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("La descripción no puede exceder ${ValidacionConstantes.DESCRIPCION_MAX} caracteres")
                                 }
                                 return@TextButton
                             }
@@ -92,22 +112,36 @@ fun PantallaCrearReceta(
                                 }
                                 return@TextButton
                             }
-
-                            val tiempo = tiempoPreparacion.toIntOrNull()
-                            if (tiempo == null || tiempo <= 0) {
+                            if (!imagenUrl.validarLongitudMax(ValidacionConstantes.URL_MAX)) {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Por favor ingresa un tiempo válido")
+                                    snackbarHostState.showSnackbar("La URL no puede exceder ${ValidacionConstantes.URL_MAX} caracteres")
+                                }
+                                return@TextButton
+                            }
+                            if (!imagenUrl.esURLImagenValida()) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Por favor ingresa una URL de imagen válida (debe comenzar con http:// o https://)")
                                 }
                                 return@TextButton
                             }
 
-                            val porcionesNum = porciones.toIntOrNull()
-                            if (porcionesNum == null || porcionesNum <= 0) {
+                            val errorTiempo = tiempoPreparacion.esNumeroEnRango(ValidacionConstantes.TIEMPO_MIN, ValidacionConstantes.TIEMPO_MAX)
+                            if (errorTiempo != null) {
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Por favor ingresa porciones válidas")
+                                    snackbarHostState.showSnackbar("Tiempo de preparación: $errorTiempo")
                                 }
                                 return@TextButton
                             }
+                            val tiempo = tiempoPreparacion.toIntOrNull() ?: 0
+
+                            val errorPorciones = porciones.esNumeroEnRango(ValidacionConstantes.PORCIONES_MIN, ValidacionConstantes.PORCIONES_MAX)
+                            if (errorPorciones != null) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Porciones: $errorPorciones")
+                                }
+                                return@TextButton
+                            }
+                            val porcionesNum = porciones.toIntOrNull() ?: 1
 
                             val ingredientesFiltrados = ingredientes.filter { it.isNotBlank() }
                             if (ingredientesFiltrados.isEmpty()) {
@@ -116,11 +150,37 @@ fun PantallaCrearReceta(
                                 }
                                 return@TextButton
                             }
+                            if (ingredientesFiltrados.size > ValidacionConstantes.INGREDIENTES_MAX) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Máximo ${ValidacionConstantes.INGREDIENTES_MAX} ingredientes permitidos")
+                                }
+                                return@TextButton
+                            }
+                            val ingredienteLargo = ingredientesFiltrados.find { !it.validarLongitudMax(ValidacionConstantes.INGREDIENTE_MAX_CHARS) }
+                            if (ingredienteLargo != null) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Cada ingrediente no puede exceder ${ValidacionConstantes.INGREDIENTE_MAX_CHARS} caracteres")
+                                }
+                                return@TextButton
+                            }
 
                             val pasosFiltrados = pasos.filter { it.isNotBlank() }
                             if (pasosFiltrados.isEmpty()) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Agrega al menos un paso")
+                                }
+                                return@TextButton
+                            }
+                            if (pasosFiltrados.size > ValidacionConstantes.PASOS_MAX) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Máximo ${ValidacionConstantes.PASOS_MAX} pasos permitidos")
+                                }
+                                return@TextButton
+                            }
+                            val pasoLargo = pasosFiltrados.find { !it.validarLongitudMax(ValidacionConstantes.PASO_MAX_CHARS) }
+                            if (pasoLargo != null) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Cada paso no puede exceder ${ValidacionConstantes.PASO_MAX_CHARS} caracteres")
                                 }
                                 return@TextButton
                             }
@@ -171,14 +231,32 @@ fun PantallaCrearReceta(
             item {
                 OutlinedTextField(
                     value = imagenUrl,
-                    onValueChange = { imagenUrl = it },
+                    onValueChange = { 
+                        if (it.length <= ValidacionConstantes.URL_MAX) {
+                            imagenUrl = it 
+                        }
+                    },
                     label = { Text("URL de la imagen *") },
                     placeholder = { Text("https://ejemplo.com/imagen.jpg") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = {
                         Icon(Icons.Default.AddPhotoAlternate, null)
-                    }
+                    },
+                    supportingText = {
+                        if (imagenUrl.isNotEmpty() && !imagenUrl.esURLImagenValida()) {
+                            Text(
+                                "URL inválida. Debe comenzar con http:// o https://",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        } else {
+                            Text(
+                                "${imagenUrl.length}/${ValidacionConstantes.URL_MAX}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    isError = imagenUrl.isNotEmpty() && !imagenUrl.esURLImagenValida()
                 )
             }
 
@@ -270,10 +348,24 @@ fun PantallaCrearReceta(
             item {
                 OutlinedTextField(
                     value = nombre,
-                    onValueChange = { nombre = it },
+                    onValueChange = { 
+                        if (it.length <= ValidacionConstantes.NOMBRE_RECETA_MAX) {
+                            nombre = it 
+                        }
+                    },
                     label = { Text("Nombre de la receta *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    supportingText = {
+                        Text(
+                            "${nombre.length}/${ValidacionConstantes.NOMBRE_RECETA_MAX}",
+                            color = if (nombre.porcentajeDeUso(ValidacionConstantes.NOMBRE_RECETA_MAX) >= 80f) 
+                                MaterialTheme.colorScheme.error 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    isError = !nombre.validarLongitudMax(ValidacionConstantes.NOMBRE_RECETA_MAX)
                 )
             }
 
@@ -281,11 +373,25 @@ fun PantallaCrearReceta(
             item {
                 OutlinedTextField(
                     value = descripcion,
-                    onValueChange = { descripcion = it },
+                    onValueChange = { 
+                        if (it.length <= ValidacionConstantes.DESCRIPCION_MAX) {
+                            descripcion = it 
+                        }
+                    },
                     label = { Text("Descripción *") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
-                    maxLines = 5
+                    maxLines = 5,
+                    supportingText = {
+                        Text(
+                            "${descripcion.length}/${ValidacionConstantes.DESCRIPCION_MAX}",
+                            color = if (descripcion.porcentajeDeUso(ValidacionConstantes.DESCRIPCION_MAX) >= 80f) 
+                                MaterialTheme.colorScheme.error 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    isError = !descripcion.validarLongitudMax(ValidacionConstantes.DESCRIPCION_MAX)
                 )
             }
 
@@ -318,19 +424,29 @@ fun PantallaCrearReceta(
                 ) {
                     OutlinedTextField(
                         value = tiempoPreparacion,
-                        onValueChange = { if (it.all { char -> char.isDigit() }) tiempoPreparacion = it },
+                        onValueChange = { 
+                            if (it.all { char -> char.isDigit() } && it.length <= 4) {
+                                tiempoPreparacion = it
+                            }
+                        },
                         label = { Text("Tiempo (min) *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Timer, null) }
+                        leadingIcon = { Icon(Icons.Default.Timer, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     OutlinedTextField(
                         value = porciones,
-                        onValueChange = { if (it.all { char -> char.isDigit() }) porciones = it },
+                        onValueChange = { 
+                            if (it.all { char -> char.isDigit() } && it.length <= 3) {
+                                porciones = it
+                            }
+                        },
                         label = { Text("Porciones *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Restaurant, null) }
+                        leadingIcon = { Icon(Icons.Default.Restaurant, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
             }
@@ -374,18 +490,30 @@ fun PantallaCrearReceta(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     OutlinedTextField(
                         value = ingrediente,
                         onValueChange = { newValue ->
-                            ingredientes = ingredientes.toMutableList().apply {
-                                this[index] = newValue
+                            if (newValue.length <= ValidacionConstantes.INGREDIENTE_MAX_CHARS) {
+                                ingredientes = ingredientes.toMutableList().apply {
+                                    this[index] = newValue
+                                }
                             }
                         },
                         label = { Text("Ingrediente ${index + 1}") },
                         modifier = Modifier.weight(1f),
-                        singleLine = true
+                        singleLine = true,
+                        supportingText = {
+                            Text(
+                                "${ingrediente.length}/${ValidacionConstantes.INGREDIENTE_MAX_CHARS}",
+                                color = if (ingrediente.porcentajeDeUso(ValidacionConstantes.INGREDIENTE_MAX_CHARS) >= 80f) 
+                                    MaterialTheme.colorScheme.error 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        isError = !ingrediente.validarLongitudMax(ValidacionConstantes.INGREDIENTE_MAX_CHARS)
                     )
                     if (ingredientes.size > 1) {
                         IconButton(
@@ -393,7 +521,8 @@ fun PantallaCrearReceta(
                                 ingredientes = ingredientes.toMutableList().apply {
                                     removeAt(index)
                                 }
-                            }
+                            },
+                            modifier = Modifier.padding(top = 8.dp)
                         ) {
                             Icon(Icons.Default.Delete, "Eliminar", tint = MaterialTheme.colorScheme.error)
                         }
@@ -404,13 +533,21 @@ fun PantallaCrearReceta(
             item {
                 TextButton(
                     onClick = {
-                        ingredientes = ingredientes + ""
+                        if (ingredientes.size < ValidacionConstantes.INGREDIENTES_MAX) {
+                            ingredientes = ingredientes + ""
+                        }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = ingredientes.size < ValidacionConstantes.INGREDIENTES_MAX
                 ) {
                     Icon(Icons.Default.Add, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Agregar ingrediente")
+                    Text(
+                        if (ingredientes.size < ValidacionConstantes.INGREDIENTES_MAX)
+                            "Agregar ingrediente (${ingredientes.size}/${ValidacionConstantes.INGREDIENTES_MAX})"
+                        else
+                            "Máximo de ingredientes alcanzado"
+                    )
                 }
             }
 
@@ -458,13 +595,21 @@ fun PantallaCrearReceta(
             item {
                 TextButton(
                     onClick = {
-                        pasos = pasos + ""
+                        if (pasos.size < ValidacionConstantes.PASOS_MAX) {
+                            pasos = pasos + ""
+                        }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = pasos.size < ValidacionConstantes.PASOS_MAX
                 ) {
                     Icon(Icons.Default.Add, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Agregar paso")
+                    Text(
+                        if (pasos.size < ValidacionConstantes.PASOS_MAX)
+                            "Agregar paso (${pasos.size}/${ValidacionConstantes.PASOS_MAX})"
+                        else
+                            "Máximo de pasos alcanzado"
+                    )
                 }
             }
 

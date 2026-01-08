@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.saborforaneo.R
 import com.example.saborforaneo.ui.components.DialogoEstablecerContrasena
+import com.example.saborforaneo.util.ValidacionConstantes
 import com.example.saborforaneo.viewmodel.AuthState
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -212,8 +213,10 @@ fun PantallaRegistro(
             OutlinedTextField(
                 value = nombre,
                 onValueChange = {
-                    nombre = it
-                    if (mensajeError.isNotEmpty()) mensajeError = ""
+                    if (it.length <= ValidacionConstantes.NOMBRE_USUARIO_MAX) {
+                        nombre = it
+                        if (mensajeError.isNotEmpty()) mensajeError = ""
+                    }
                 },
                 label = { Text("Nombre completo") },
                 placeholder = { Text("Juan Pérez") },
@@ -241,8 +244,10 @@ fun PantallaRegistro(
             OutlinedTextField(
                 value = email,
                 onValueChange = {
-                    email = it
-                    if (mensajeError.isNotEmpty()) mensajeError = ""
+                    if (it.length <= ValidacionConstantes.EMAIL_MAX) {
+                        email = it
+                        if (mensajeError.isNotEmpty()) mensajeError = ""
+                    }
                 },
                 label = { Text("Email") },
                 placeholder = { Text("tu@email.com") },
@@ -270,8 +275,10 @@ fun PantallaRegistro(
             OutlinedTextField(
                 value = password,
                 onValueChange = {
-                    password = it
-                    if (mensajeError.isNotEmpty()) mensajeError = ""
+                    if (it.length <= ValidacionConstantes.PASSWORD_MAX) {
+                        password = it
+                        if (mensajeError.isNotEmpty()) mensajeError = ""
+                    }
                 },
                 label = { Text("Contraseña") },
                 placeholder = { Text("Mínimo 6 caracteres") },
@@ -317,8 +324,10 @@ fun PantallaRegistro(
             OutlinedTextField(
                 value = confirmarPassword,
                 onValueChange = {
-                    confirmarPassword = it
-                    if (mensajeError.isNotEmpty()) mensajeError = ""
+                    if (it.length <= ValidacionConstantes.PASSWORD_MAX) {
+                        confirmarPassword = it
+                        if (mensajeError.isNotEmpty()) mensajeError = ""
+                    }
                 },
                 label = { Text("Confirmar contraseña") },
                 placeholder = { Text("Escribe la contraseña de nuevo") },

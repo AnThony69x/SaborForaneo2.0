@@ -22,6 +22,12 @@ import com.example.saborforaneo.data.model.Dificultad
 import com.example.saborforaneo.data.model.Precio
 import com.example.saborforaneo.data.model.Receta
 import com.example.saborforaneo.util.Categorias
+import com.example.saborforaneo.util.ValidacionConstantes
+import com.example.saborforaneo.util.validarLongitudMax
+import com.example.saborforaneo.util.esURLImagenValida
+import com.example.saborforaneo.util.soloLetrasYEspacios
+import com.example.saborforaneo.util.porcentajeDeUso
+import com.example.saborforaneo.util.contarLineasNoVacias
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -145,31 +151,76 @@ fun DialogoFormularioReceta(
 
                             OutlinedTextField(
                                 value = nombre,
-                                onValueChange = { nombre = it },
+                                onValueChange = { 
+                                    if (it.length <= ValidacionConstantes.NOMBRE_RECETA_MAX) {
+                                        nombre = it 
+                                    }
+                                },
                                 label = { Text("Nombre de la receta *") },
                                 leadingIcon = { Icon(Icons.Default.Restaurant, null) },
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
+                                singleLine = true,
+                                supportingText = {
+                                    Text(
+                                        "${nombre.length}/${ValidacionConstantes.NOMBRE_RECETA_MAX}",
+                                        color = if (nombre.porcentajeDeUso(ValidacionConstantes.NOMBRE_RECETA_MAX) >= 80f) 
+                                            MaterialTheme.colorScheme.error 
+                                        else 
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                isError = !nombre.validarLongitudMax(ValidacionConstantes.NOMBRE_RECETA_MAX)
                             )
 
                             OutlinedTextField(
                                 value = descripcion,
-                                onValueChange = { descripcion = it },
+                                onValueChange = { 
+                                    if (it.length <= ValidacionConstantes.DESCRIPCION_MAX) {
+                                        descripcion = it 
+                                    }
+                                },
                                 label = { Text("Descripción") },
                                 leadingIcon = { Icon(Icons.Default.Description, null) },
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 3,
-                                maxLines = 4
+                                maxLines = 4,
+                                supportingText = {
+                                    Text(
+                                        "${descripcion.length}/${ValidacionConstantes.DESCRIPCION_MAX}",
+                                        color = if (descripcion.porcentajeDeUso(ValidacionConstantes.DESCRIPCION_MAX) >= 80f) 
+                                            MaterialTheme.colorScheme.error 
+                                        else 
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                isError = !descripcion.validarLongitudMax(ValidacionConstantes.DESCRIPCION_MAX)
                             )
 
                             OutlinedTextField(
                                 value = imagenUrl,
-                                onValueChange = { imagenUrl = it },
+                                onValueChange = { 
+                                    if (it.length <= ValidacionConstantes.URL_MAX) {
+                                        imagenUrl = it 
+                                    }
+                                },
                                 label = { Text("URL de la imagen") },
                                 leadingIcon = { Icon(Icons.Default.Image, null) },
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = { Text("https://images.unsplash.com/...") },
-                                supportingText = { Text("Usa una imagen de Unsplash o similar", style = MaterialTheme.typography.bodySmall) }
+                                supportingText = { 
+                                    if (imagenUrl.isNotEmpty() && !imagenUrl.esURLImagenValida()) {
+                                        Text(
+                                            "URL inválida. Debe comenzar con http:// o https://",
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else {
+                                        Text(
+                                            "${imagenUrl.length}/${ValidacionConstantes.URL_MAX}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                isError = imagenUrl.isNotEmpty() && !imagenUrl.esURLImagenValida()
                             )
 
                             // Vista previa de la imagen
@@ -381,12 +432,30 @@ fun DialogoFormularioReceta(
 
                             OutlinedTextField(
                                 value = pais,
-                                onValueChange = { pais = it },
+                                onValueChange = { 
+                                    if (it.length <= ValidacionConstantes.PAIS_MAX) {
+                                        pais = it 
+                                    }
+                                },
                                 label = { Text("País de origen (opcional)") },
                                 leadingIcon = { Icon(Icons.Default.Public, null) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                placeholder = { Text("Ecuador, México, Italia...") }
+                                placeholder = { Text("Ecuador, México, Italia...") },
+                                supportingText = {
+                                    if (pais.isNotEmpty() && !pais.soloLetrasYEspacios()) {
+                                        Text(
+                                            "Solo se permiten letras, espacios y guiones",
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else {
+                                        Text(
+                                            "${pais.length}/${ValidacionConstantes.PAIS_MAX}",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                isError = pais.isNotEmpty() && !pais.soloLetrasYEspacios()
                             )
 
                             Row(
@@ -533,14 +602,30 @@ fun DialogoFormularioReceta(
 
                             OutlinedTextField(
                                 value = ingredientes,
-                                onValueChange = { ingredientes = it },
+                                onValueChange = { 
+                                    if (it.length <= ValidacionConstantes.INGREDIENTES_TEXTO_MAX) {
+                                        ingredientes = it 
+                                    }
+                                },
                                 label = { Text("Escribe un ingrediente por línea") },
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 5,
                                 maxLines = 8,
                                 placeholder = {
                                     Text("Ejemplo:\n• 500g de pasta\n• 2 tomates grandes\n• 100ml aceite de oliva\n• Sal al gusto")
-                                }
+                                },
+                                supportingText = {
+                                    val lineas = ingredientes.contarLineasNoVacias()
+                                    Text(
+                                        "${ingredientes.length}/${ValidacionConstantes.INGREDIENTES_TEXTO_MAX} caracteres | $lineas líneas",
+                                        color = if (lineas > ValidacionConstantes.INGREDIENTES_MAX || 
+                                                   ingredientes.porcentajeDeUso(ValidacionConstantes.INGREDIENTES_TEXTO_MAX) >= 80f) 
+                                            MaterialTheme.colorScheme.error 
+                                        else 
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                isError = ingredientes.contarLineasNoVacias() > ValidacionConstantes.INGREDIENTES_MAX
                             )
                         }
                     }
@@ -564,14 +649,30 @@ fun DialogoFormularioReceta(
 
                             OutlinedTextField(
                                 value = pasos,
-                                onValueChange = { pasos = it },
+                                onValueChange = { 
+                                    if (it.length <= ValidacionConstantes.PASOS_TEXTO_MAX) {
+                                        pasos = it 
+                                    }
+                                },
                                 label = { Text("Escribe un paso por línea") },
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 6,
                                 maxLines = 10,
                                 placeholder = {
                                     Text("Ejemplo:\n1. Hervir agua con sal\n2. Cocinar la pasta 10 minutos\n3. Escurrir bien\n4. Servir caliente")
-                                }
+                                },
+                                supportingText = {
+                                    val lineas = pasos.contarLineasNoVacias()
+                                    Text(
+                                        "${pasos.length}/${ValidacionConstantes.PASOS_TEXTO_MAX} caracteres | $lineas líneas",
+                                        color = if (lineas > ValidacionConstantes.PASOS_MAX || 
+                                                   pasos.porcentajeDeUso(ValidacionConstantes.PASOS_TEXTO_MAX) >= 80f) 
+                                            MaterialTheme.colorScheme.error 
+                                        else 
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                isError = pasos.contarLineasNoVacias() > ValidacionConstantes.PASOS_MAX
                             )
                         }
                     }

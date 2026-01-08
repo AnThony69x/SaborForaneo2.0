@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.saborforaneo.util.ValidacionConstantes
 
 @Composable
 fun DialogoEstablecerContrasena(
@@ -114,8 +115,10 @@ fun DialogoEstablecerContrasena(
                 OutlinedTextField(
                     value = password,
                     onValueChange = {
-                        password = it
-                        if (mensajeError.isNotEmpty()) mensajeError = ""
+                        if (it.length <= ValidacionConstantes.PASSWORD_MAX) {
+                            password = it
+                            if (mensajeError.isNotEmpty()) mensajeError = ""
+                        }
                     },
                     label = { Text("Contraseña") },
                     placeholder = { Text("Mínimo 6 caracteres") },
@@ -161,8 +164,10 @@ fun DialogoEstablecerContrasena(
                 OutlinedTextField(
                     value = confirmarPassword,
                     onValueChange = {
-                        confirmarPassword = it
-                        if (mensajeError.isNotEmpty()) mensajeError = ""
+                        if (it.length <= ValidacionConstantes.PASSWORD_MAX) {
+                            confirmarPassword = it
+                            if (mensajeError.isNotEmpty()) mensajeError = ""
+                        }
                     },
                     label = { Text("Confirmar contraseña") },
                     placeholder = { Text("Escribe la contraseña de nuevo") },

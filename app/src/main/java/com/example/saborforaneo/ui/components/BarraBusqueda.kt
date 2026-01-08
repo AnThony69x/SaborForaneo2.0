@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.saborforaneo.util.ValidacionConstantes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,7 +22,11 @@ fun BarraBusqueda(
 ) {
     OutlinedTextField(
         value = consulta,
-        onValueChange = alCambiarConsulta,
+        onValueChange = { 
+            if (it.length <= ValidacionConstantes.BUSQUEDA_MAX) {
+                alCambiarConsulta(it) 
+            }
+        },
         placeholder = { Text(placeholder) },
         leadingIcon = {
             Icon(

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.saborforaneo.util.Constantes
+import com.example.saborforaneo.util.ValidacionConstantes
 import com.example.saborforaneo.viewmodel.AuthState
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
@@ -189,8 +190,10 @@ fun PantallaIngresoEmail(
             OutlinedTextField(
                 value = email,
                 onValueChange = { 
-                    onEmailChange(it)
-                    mensajeErrorLocal = "" // Limpiar error al escribir
+                    if (it.length <= ValidacionConstantes.EMAIL_MAX) {
+                        onEmailChange(it)
+                        mensajeErrorLocal = "" // Limpiar error al escribir
+                    }
                 },
                 label = { Text("Email") },
                 placeholder = { Text("tu@email.com") },

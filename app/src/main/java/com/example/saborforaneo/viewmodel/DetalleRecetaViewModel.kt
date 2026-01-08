@@ -49,5 +49,19 @@ class DetalleRecetaViewModel(
             }
         }
     }
+
+    fun alternarFavorito() {
+        viewModelScope.launch {
+            _uiState.value.receta?.let { receta ->
+                val nuevoEstado = !receta.esFavorito
+                repository.actualizarFavorito(receta.id, nuevoEstado)
+                
+                // Actualizar el estado local inmediatamente
+                _uiState.value = _uiState.value.copy(
+                    receta = receta.copy(esFavorito = nuevoEstado)
+                )
+            }
+        }
+    }
 }
 

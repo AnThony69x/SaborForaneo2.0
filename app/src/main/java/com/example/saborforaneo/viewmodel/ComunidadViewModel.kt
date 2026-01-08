@@ -144,9 +144,20 @@ class ComunidadViewModel : ViewModel() {
                     esVegetariana = esVegetariana,
                     esVegana = esVegana,
                     imagenUrl = imagenUrl,
+                    autorId = uid,
                     autorUid = uid,
+                    nombreAutor = usuario.nombre,
                     autorNombre = usuario.nombre,
-                    autorFoto = usuario.fotoPerfil
+                    autorFoto = usuario.fotoPerfil,
+                    fechaCreacion = System.currentTimeMillis(),
+                    activa = true,
+                    moderada = true,
+                    publicada = false,
+                    rechazada = false,
+                    fechaPublicacion = 0,
+                    totalFavoritos = 0,
+                    likes = 0,
+                    comentarios = 0
                 )
 
                 val resultado = comunidadRepository.crearReceta(receta, null)

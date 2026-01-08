@@ -25,10 +25,59 @@ service cloud.firestore {
       allow delete: if request.auth != null && esAdmin();
     }
 
+    // RECETAS COMUNIDAD (sin guión bajo) - REGLAS ANTIGUAS MANTENIDAS
+    match /recetasComunidad/{recetaId} {
+      allow read: if true;
+      allow create: if request.auth != null &&
+                       request.resource.data.autorUid == request.auth.uid;
+      allow update: if request.auth != null &&
+                       (resource.data.autorUid == request.auth.uid ||
+                        request.resource.data.keys().hasAll(['likes', 'usuariosQueLikean']) ||
+                        esAdmin());
+      allow delete: if request.auth != null &&
+                       (resource.data.autorUid == request.auth.uid || esAdmin());
+    }
+
+    // RECETAS COMUNIDAD (con guión bajo) - NUEVAS REGLAS PARA ADMIN
+    match /recetas_comunidad/{recetaId} {
+      allow read: if true;
+      allow create: if request.auth != null &&
+                       request.resource.data.autorUid == request.auth.uid;
+      allow update: if request.auth != null &&
+                       (esAdmin() || 
+                        resource.data.autorUid == request.auth.uid ||
+                        request.resource.data.keys().hasAll(['likes', 'usuariosQueLikean']));
+      allow delete: if request.auth != null && esAdmin();
+    }
+
+    // Comentarios de recetas de comunidad
+    match /comentarios_recetas/{comentarioId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+                               (esAdmin() || resource.data.autorUid == request.auth.uid);
+    }
+
+    // Comentarios generales
+    match /comentarios/{comentarioId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null &&
+                       (resource.data.autorUid == request.auth.uid ||
+                        resource.data.userId == request.auth.uid ||
+                        esAdmin());
+    }
+
     // Favoritos
     match /favoritos/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Favoritos por usuario
+    match /usuarios/{userId}/recetasFavoritas/{recetaId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
