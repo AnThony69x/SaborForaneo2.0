@@ -23,6 +23,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SaborForaneo"
         tools:targetApi="31">
+        
+        <!-- Actividad Principal -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,6 +34,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <!-- Servicio de Firebase Cloud Messaging -->
+        <service
+            android:name=".notifications.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        
+        <!-- Metadata para Firebase Cloud Messaging -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@android:drawable/ic_dialog_info" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/holo_orange_dark" />
+        
     </application>
 
 </manifest>

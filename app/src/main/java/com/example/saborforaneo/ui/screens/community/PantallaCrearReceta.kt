@@ -1,5 +1,6 @@
 package com.example.saborforaneo.ui.screens.community
 
+import android.app.Application
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -38,7 +39,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun PantallaCrearReceta(
     navegarAtras: () -> Unit,
-    viewModel: ComunidadViewModel = viewModel()
+    viewModel: ComunidadViewModel = run {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        viewModel {
+            ComunidadViewModel(context.applicationContext as Application)
+        }
+    }
 ) {
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }

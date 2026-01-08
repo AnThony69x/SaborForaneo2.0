@@ -1,11 +1,13 @@
 package com.example.saborforaneo.viewmodel
 
+import android.app.Application
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saborforaneo.data.model.RecetaComunidad
 import com.example.saborforaneo.data.repository.ComunidadRepository
 import com.example.saborforaneo.data.repository.FirestoreRepository
+import com.example.saborforaneo.notifications.NotificacionesManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,10 +27,11 @@ enum class VistaComunidad {
     MIS_RECETAS
 }
 
-class ComunidadViewModel : ViewModel() {
+class ComunidadViewModel(application: Application) : AndroidViewModel(application) {
     private val comunidadRepository = ComunidadRepository()
     private val firestoreRepository = FirestoreRepository()
     private val auth = FirebaseAuth.getInstance()
+    private val notificacionesManager = NotificacionesManager(application)
 
     private val _uiState = MutableStateFlow(ComunidadUiState())
     val uiState: StateFlow<ComunidadUiState> = _uiState.asStateFlow()
@@ -162,6 +165,9 @@ class ComunidadViewModel : ViewModel() {
 
                 val resultado = comunidadRepository.crearReceta(receta, null)
                 if (resultado.isSuccess) {
+                    // Enviar notificación a otros usuarios
+                    notificacionesManager.notificarNuevaRecetaComunidad(nombre, usuario.nombre)
+                    
                     cargarMisRecetas()
                     onSuccess()
                 } else {

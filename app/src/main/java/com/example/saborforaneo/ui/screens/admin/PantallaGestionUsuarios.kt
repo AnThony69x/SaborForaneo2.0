@@ -1,5 +1,6 @@
 package com.example.saborforaneo.ui.screens.admin
 
+import android.app.Application
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -34,7 +35,9 @@ fun PantallaGestionUsuarios(
     controladorNav: NavController
 ) {
     val context = LocalContext.current
-    val viewModel: GestionComunidadViewModel = viewModel()
+    val viewModel: GestionComunidadViewModel = viewModel {
+        GestionComunidadViewModel(context.applicationContext as Application)
+    }
     val recetas by viewModel.recetas.collectAsState()
     val estadisticas by viewModel.estadisticas.collectAsState()
     

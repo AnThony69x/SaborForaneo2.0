@@ -1,8 +1,10 @@
 package com.example.saborforaneo.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saborforaneo.data.model.RecetaComunidad
+import com.example.saborforaneo.notifications.NotificacionesManager
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,9 +29,10 @@ data class EstadisticasComunidad(
     val recetasHoy: Int = 0
 )
 
-class GestionComunidadViewModel : ViewModel() {
+class GestionComunidadViewModel(application: Application) : AndroidViewModel(application) {
     private val firestore = FirebaseFirestore.getInstance()
     private val recetasCollection = firestore.collection("recetasComunidad")
+    private val notificacionesManager = NotificacionesManager(application)
 
     private val _recetas = MutableStateFlow(RecetasComunidadState())
     val recetas: StateFlow<RecetasComunidadState> = _recetas.asStateFlow()
@@ -114,6 +117,13 @@ class GestionComunidadViewModel : ViewModel() {
     fun publicarReceta(recetaId: String) {
         viewModelScope.launch {
             try {
+                // Obtener datos de la receta antes de publicar
+                val recetaSnapshot = recetasCollection.document(recetaId).get().await()
+                val recetaData = recetaSnapshot.data
+                val tituloReceta = recetaData?.get("nombre") as? String ?: "Nueva receta"
+                val descripcion = recetaData?.get("descripcion") as? String ?: ""
+                
+                // Actualizar estado de publicación
                 recetasCollection.document(recetaId)
                     .update(
                         mapOf(
@@ -123,6 +133,9 @@ class GestionComunidadViewModel : ViewModel() {
                         )
                     )
                     .await()
+
+                // Enviar notificación a todos los usuarios
+                notificacionesManager.notificarNuevaRecetaAdmin(tituloReceta, descripcion)
 
                 // Recargar recetas
                 cargarRecetasComunidad()

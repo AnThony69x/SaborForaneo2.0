@@ -1,6 +1,7 @@
 package com.example.saborforaneo
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,20 +13,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
+import com.example.saborforaneo.notifications.NotificacionesScheduler
+import com.example.saborforaneo.notifications.NotificacionesManager
 import com.example.saborforaneo.permissions.rememberLocationPermissionState
 import com.example.saborforaneo.permissions.rememberNotificationPermissionState
 import com.example.saborforaneo.ui.navigation.GrafoNavegacion
 import com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 import com.example.saborforaneo.ui.theme.SaborForaneoTheme
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Inicializar el sistema de notificaciones
+        inicializarNotificaciones()
+
         // Leer el Intent para ver si viene de una notificación
         val navigateTo = intent.getStringExtra("NAVIGATE_TO")
+        val tipoNotificacion = intent.getStringExtra("tipo_notificacion")
 
         setContent {
             val perfilViewModel: PerfilViewModel = viewModel()
@@ -111,6 +120,33 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+    
+    /**
+     * Inicializa el sistema de notificaciones de la app
+     */
+    private fun inicializarNotificaciones() {
+        try {
+            // Obtener el token de FCM
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    Log.d("MainActivity", "Token FCM: $token")
+                    
+                    // Aquí podrías guardar el token en Firestore
+                    // usando NotificacionesManager si el usuario está autenticado
+                } else {
+                    Log.e("MainActivity", "Error al obtener token FCM", task.exception)
+                }
+            }
+            
+            // Programar notificaciones periódicas de recordatorio (cada 24 horas)
+            NotificacionesScheduler.programarRecordatorios(this, intervaloHoras = 24)
+            
+            Log.d("MainActivity", "Sistema de notificaciones inicializado")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error al inicializar notificaciones", e)
         }
     }
 }

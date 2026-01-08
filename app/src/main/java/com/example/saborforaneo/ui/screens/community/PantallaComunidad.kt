@@ -1,5 +1,6 @@
 package com.example.saborforaneo.ui.screens.community
 
+import android.app.Application
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -40,7 +41,12 @@ fun PantallaComunidad(
     navegarACrearReceta: () -> Unit,
     navegarADetalle: (String, Boolean) -> Unit, // Añadido parámetro scrollToComments
     controladorNav: NavController,
-    viewModel: ComunidadViewModel = viewModel()
+    viewModel: ComunidadViewModel = run {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        viewModel {
+            ComunidadViewModel(context.applicationContext as Application)
+        }
+    }
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }

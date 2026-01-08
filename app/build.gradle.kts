@@ -123,6 +123,12 @@ dependencies {
     
     // Firebase Analytics
     implementation("com.google.firebase:firebase-analytics")
+    
+    // Firebase Cloud Messaging
+    implementation("com.google.firebase:firebase-messaging")
+    
+    // WorkManager para notificaciones periódicas
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Add the dependencies for any other desired Firebase products
     // https://firebase.google.com/docs/android/setup#available-libraries
