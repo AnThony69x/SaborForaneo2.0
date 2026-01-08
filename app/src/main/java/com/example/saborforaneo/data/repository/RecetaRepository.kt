@@ -150,22 +150,6 @@ class RecetaRepository(private val context: Context) {
     }
 
     /**
-     * Actualizar estado de favorito de una receta
-     */
-    suspend fun actualizarFavorito(recetaId: String, esFavorito: Boolean): Result<Unit> {
-        return try {
-            recetasCollection.document(recetaId)
-                .update("esFavorito", esFavorito)
-                .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-
-    /**
      * Obtener todas las recetas (para panel de gestión del admin)
      */
     suspend fun obtenerRecetasAdmin(): Result<List<Receta>> {
@@ -216,7 +200,7 @@ class RecetaRepository(private val context: Context) {
                 pais = data["pais"] as? String ?: "",
                 ingredientes = (data["ingredientes"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
                 pasos = (data["pasos"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                esFavorito = data["esFavorito"] as? Boolean ?: false,
+                esFavorito = false, // Se calculará según el usuario
                 esVegetariana = data["esVegetariana"] as? Boolean ?: false,
                 esVegana = data["esVegana"] as? Boolean ?: false,
                 precio = try {

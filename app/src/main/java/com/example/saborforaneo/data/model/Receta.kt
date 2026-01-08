@@ -40,7 +40,7 @@ data class Receta(
             "pais" to pais,
             "ingredientes" to ingredientes,
             "pasos" to pasos,
-            "esFavorito" to esFavorito,
+            // NO guardamos esFavorito en Firestore - es un campo calculado por usuario
             "esVegetariana" to esVegetariana,
             "esVegana" to esVegana,
             "precio" to precio.name,

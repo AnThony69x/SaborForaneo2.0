@@ -428,10 +428,8 @@ class DetalleRecetaComunidadViewModel : ViewModel() {
                     val resultado = comunidadRepository.actualizarFavoritoRecetaComunidad(recetaId, nuevoEstado)
                     
                     if (resultado.isSuccess) {
-                        // Actualizar el estado local inmediatamente
-                        _uiState.value = _uiState.value.copy(
-                            receta = receta.copy(esFavorito = nuevoEstado)
-                        )
+                        // Recargar la receta completa desde Firestore para asegurar sincronización
+                        cargarReceta(recetaId)
                     } else {
                         _uiState.value = _uiState.value.copy(
                             error = "Error al actualizar favorito"

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saborforaneo.data.model.Receta
 import com.example.saborforaneo.data.repository.RecetaRepository
+import com.example.saborforaneo.data.repository.FirestoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,8 @@ class DetalleRecetaViewModel(
     private val context: Context,
     private val recetaId: String
 ) : ViewModel() {
-    private val repository = RecetaRepository(context)
+    private val recetaRepository = RecetaRepository(context)
+    private val firestoreRepository = FirestoreRepository()
 
     private val _uiState = MutableStateFlow(DetalleRecetaUiState())
     val uiState: StateFlow<DetalleRecetaUiState> = _uiState.asStateFlow()
@@ -33,17 +35,31 @@ class DetalleRecetaViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(cargando = true, error = null)
 
-            val resultado = repository.obtenerRecetaPorId(recetaId)
-
-            if (resultado.isSuccess) {
-                _uiState.value = _uiState.value.copy(
-                    receta = resultado.getOrNull(),
-                    cargando = false,
-                    error = if (resultado.getOrNull() == null) "Receta no encontrada" else null
-                )
+            val resultadoReceta = recetaRepository.obtenerRecetaPorId(recetaId)
+            
+            if (resultadoReceta.isSuccess) {
+                val receta = resultadoReceta.getOrNull()
+                
+                if (receta != null) {
+                    // Verificar si está en favoritos del usuario
+                    val resultadoFavorito = firestoreRepository.esFavorito(recetaId)
+                    val esFavorito = resultadoFavorito.getOrNull() ?: false
+                    
+                    _uiState.value = _uiState.value.copy(
+                        receta = receta.copy(esFavorito = esFavorito),
+                        cargando = false,
+                        error = null
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        receta = null,
+                        cargando = false,
+                        error = "Receta no encontrada"
+                    )
+                }
             } else {
                 _uiState.value = _uiState.value.copy(
-                    error = "Error al cargar receta: ${resultado.exceptionOrNull()?.message}",
+                    error = "Error al cargar receta: ${resultadoReceta.exceptionOrNull()?.message}",
                     cargando = false
                 )
             }
@@ -53,13 +69,18 @@ class DetalleRecetaViewModel(
     fun alternarFavorito() {
         viewModelScope.launch {
             _uiState.value.receta?.let { receta ->
-                val nuevoEstado = !receta.esFavorito
-                repository.actualizarFavorito(receta.id, nuevoEstado)
+                val esFavorito = receta.esFavorito
                 
-                // Actualizar el estado local inmediatamente
-                _uiState.value = _uiState.value.copy(
-                    receta = receta.copy(esFavorito = nuevoEstado)
-                )
+                val resultado = if (esFavorito) {
+                    firestoreRepository.quitarFavorito(receta.id)
+                } else {
+                    firestoreRepository.agregarFavorito(receta.id)
+                }
+                
+                if (resultado.isSuccess) {
+                    // Recargar la receta para obtener el estado actualizado
+                    cargarReceta()
+                }
             }
         }
     }
