@@ -44,7 +44,7 @@ fun PantallaChat(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     
-    // Sugerencias rápidas aleatorias
+    // Sugerencias rápidas aleatorias - más opciones
     val sugerenciasRapidas = remember {
         listOf(
             "🍽️ Receta del día" to "Dame una receta aleatoria del día",
@@ -54,8 +54,16 @@ fun PantallaChat(
             "🎂 Postres" to "Recomiéndame un postre delicioso",
             "🥘 Cocina regional" to "Cuéntame sobre platillos regionales de México",
             "👨‍🍳 Tips de cocina" to "Dame consejos útiles de cocina",
-            "🌱 Vegetariano" to "Recomiéndame recetas vegetarianas"
-        ).shuffled().take(4)
+            "🌱 Vegetariano" to "Recomiéndame recetas vegetarianas",
+            "🍕 Cena familiar" to "¿Qué puedo hacer para una cena familiar?",
+            "🥙 Lunch para llevar" to "Dame ideas de comida para llevar al trabajo",
+            "🍝 Pasta casera" to "Enséñame a hacer pasta desde cero",
+            "🍲 Platillo con pollo" to "¿Qué puedo cocinar con pechuga de pollo?",
+            "🧁 Repostería fácil" to "Dame una receta de repostería para principiantes",
+            "🌶️ Comida picante" to "Recomiéndame platillos picantes mexicanos",
+            "🥩 Carnes" to "¿Cómo preparar diferentes cortes de carne?",
+            "🍜 Sopas y caldos" to "Dame recetas de sopas reconfortantes"
+        ).shuffled().take(6)
     }
 
     // Auto-scroll cuando llega un nuevo mensaje
@@ -72,66 +80,105 @@ fun PantallaChat(
             .fillMaxSize()
             .imePadding(), // Importante: se eleva con el teclado
         topBar = {
-            // Header
+            // Header mejorado con mejor espaciado y simetría
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                tonalElevation = 3.dp
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp,
+                shadowElevation = 4.dp
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Column {
+                    // Espaciador superior para bajar el contenido
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.SmartToy,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Column {
+                        // Icono del chef con fondo
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                                    .size(28.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             Text(
                                 text = "Chef AI Asistente",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                text = if (isLoading) "Escribiendo..." else "En línea",
-                                fontSize = 12.sp,
-                                color = if (isLoading) 
-                                    MaterialTheme.colorScheme.primary 
-                                else 
-                                    MaterialTheme.colorScheme.tertiary
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (isLoading) 
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                    else 
+                                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
+                                    modifier = Modifier.size(8.dp)
+                                ) {}
+                                Text(
+                                    text = if (isLoading) "Escribiendo..." else "En línea",
+                                    fontSize = 13.sp,
+                                    color = if (isLoading) 
+                                        MaterialTheme.colorScheme.primary 
+                                    else 
+                                        MaterialTheme.colorScheme.tertiary
+                                )
+                            }
                         }
                     }
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         // Botón limpiar chat
-                        IconButton(onClick = { viewModel.clearChat() }) {
+                        IconButton(
+                            onClick = { viewModel.clearChat() },
+                            modifier = Modifier.size(40.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.RestartAlt,
                                 contentDescription = "Limpiar chat",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
                         // Botón cerrar
-                        IconButton(onClick = onDismiss) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(40.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cerrar",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                }
                 }
             }
         },
@@ -183,74 +230,101 @@ fun PantallaChat(
                     }
                 }
                 
-                // Input de mensaje
+                // Input de mensaje mejorado
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 3.dp,
+                    tonalElevation = 2.dp,
                     shadowElevation = 8.dp
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
                     ) {
-                        OutlinedTextField(
-                            value = messageText,
-                            onValueChange = { 
-                                if (it.length <= ValidacionConstantes.MENSAJE_CHAT_MAX) {
-                                    messageText = it 
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Escribe tu mensaje...") },
-                            enabled = !isLoading,
-                            shape = RoundedCornerShape(24.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            ),
-                            maxLines = 4,
-                            supportingText = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = messageText,
+                                    onValueChange = { 
+                                        if (it.length <= ValidacionConstantes.MENSAJE_CHAT_MAX) {
+                                            messageText = it 
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { 
+                                        Text(
+                                            "Pregúntame sobre recetas...",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        ) 
+                                    },
+                                    enabled = !isLoading,
+                                    shape = RoundedCornerShape(28.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                    ),
+                                    maxLines = 4,
+                                    isError = !messageText.validarLongitudMax(ValidacionConstantes.MENSAJE_CHAT_MAX)
+                                )
+                                
+                                // Contador de caracteres
                                 Text(
                                     "${messageText.length}/${ValidacionConstantes.MENSAJE_CHAT_MAX}",
+                                    fontSize = 11.sp,
                                     color = if (messageText.porcentajeDeUso(ValidacionConstantes.MENSAJE_CHAT_MAX) >= 80f) 
                                         MaterialTheme.colorScheme.error 
                                     else 
-                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, top = 4.dp)
                                 )
-                            },
-                            isError = !messageText.validarLongitudMax(ValidacionConstantes.MENSAJE_CHAT_MAX)
-                        )
+                            }
 
-                        // Botón enviar
-                        FloatingActionButton(
-                            onClick = {
-                                if (messageText.isNotBlank()) {
-                                    viewModel.sendMessage(messageText)
-                                    messageText = ""
+                            // Botón enviar mejorado con validación
+                            FloatingActionButton(
+                                onClick = {
+                                    val textoLimpio = messageText.trim()
+                                    if (textoLimpio.isNotBlank() && textoLimpio.length >= 3) {
+                                        viewModel.sendMessage(textoLimpio)
+                                        messageText = ""
+                                    }
+                                },
+                                containerColor = if (messageText.trim().isNotBlank() && messageText.trim().length >= 3 && !isLoading)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .padding(top = 8.dp),
+                                elevation = FloatingActionButtonDefaults.elevation(
+                                    defaultElevation = 4.dp,
+                                    pressedElevation = 8.dp
+                                )
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        strokeWidth = 2.5.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = "Enviar mensaje",
+                                        tint = if (messageText.trim().isNotBlank() && messageText.trim().length >= 3)
+                                            MaterialTheme.colorScheme.onPrimary
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    )
                                 }
-                            },
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(56.dp),
-                            elevation = FloatingActionButtonDefaults.elevation(
-                                defaultElevation = 6.dp,
-                                pressedElevation = 12.dp
-                            )
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Enviar mensaje",
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
                             }
                         }
                     }
@@ -269,7 +343,8 @@ fun PantallaChat(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Mensaje de bienvenida si no hay mensajes
                 if (messages.isEmpty()) {
@@ -277,33 +352,58 @@ fun PantallaChat(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(vertical = 32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Celebration,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "¡Bienvenido al Chef AI!",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Soy tu asistente culinario personal. Puedo ayudarte con recetas, consejos de cocina, sustitutos de ingredientes y mucho más.",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                            // Icono grande con fondo
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                modifier = Modifier.size(96.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Celebration,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(20.dp)
+                                        .fillMaxSize(),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "¡Bienvenido al Chef AI!",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Soy tu asistente culinario personal. Puedo ayudarte con recetas, consejos de cocina, sustitutos de ingredientes y mucho más.",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    lineHeight = 22.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // Divider sutil
+                            Divider(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.3f),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
                             
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             
                             Text(
-                                text = "💡 Sugerencias rápidas",
+                                text = "💡 Sugerencias para empezar",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -313,30 +413,47 @@ fun PantallaChat(
                     
                     // Chips de sugerencias rápidas
                     item {
-                        LazyRow(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            items(sugerenciasRapidas) { (label, prompt) ->
-                                SuggestionChip(
-                                    onClick = {
-                                        viewModel.sendMessage(prompt)
-                                    },
-                                    label = { Text(label) },
-                                    icon = {
-                                        Icon(
-                                            imageVector = Icons.Default.AutoAwesome,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
+                            sugerenciasRapidas.chunked(2).forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    rowItems.forEach { (label, prompt) ->
+                                        SuggestionChip(
+                                            onClick = {
+                                                viewModel.sendMessage(prompt)
+                                            },
+                                            label = { 
+                                                Text(
+                                                    label,
+                                                    fontSize = 13.sp
+                                                ) 
+                                            },
+                                            icon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.AutoAwesome,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            },
+                                            enabled = !isLoading,
+                                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                                labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                iconContentColor = MaterialTheme.colorScheme.secondary
+                                            ),
+                                            border = BorderStroke(
+                                                width = 1.dp,
+                                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+                                            ),
+                                            modifier = Modifier.weight(1f)
                                         )
-                                    },
-                                    enabled = !isLoading,
-                                    colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                        labelColor = MaterialTheme.colorScheme.primary
-                                    )
-                                )
+                                    }
+                                }
                             }
                         }
                     }
@@ -348,35 +465,61 @@ fun PantallaChat(
                     
                     // Mostrar sugerencias también cuando hay mensajes
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "✨ Pregunta algo más",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                            Divider(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.25f),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                             )
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            
+                            Text(
+                                text = "✨ Continúa la conversación",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            // Sugerencias en cuadrícula
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(sugerenciasRapidas.take(3)) { (label, prompt) ->
-                                    AssistChip(
-                                        onClick = {
-                                            viewModel.sendMessage(prompt)
-                                        },
-                                        label = { 
-                                            Text(
-                                                label,
-                                                fontSize = 12.sp
-                                            ) 
-                                        },
-                                        enabled = !isLoading
-                                    )
+                                sugerenciasRapidas.take(4).chunked(2).forEach { rowItems ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        rowItems.forEach { (label, prompt) ->
+                                            AssistChip(
+                                                onClick = {
+                                                    viewModel.sendMessage(prompt)
+                                                },
+                                                label = { 
+                                                    Text(
+                                                        label,
+                                                        fontSize = 12.sp
+                                                    ) 
+                                                },
+                                                enabled = !isLoading,
+                                                colors = AssistChipDefaults.assistChipColors(
+                                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                                ),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                        // Si solo hay un item en la fila, agregar espacio
+                                        if (rowItems.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
                                 }
                             }
                         }
