@@ -480,7 +480,7 @@ fun DialogoFormularioReceta(
                                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mostrarMenuDificultad) },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .menuAnchor(),
+                                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                         singleLine = true
                                     )
@@ -523,7 +523,7 @@ fun DialogoFormularioReceta(
                                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mostrarMenuPrecio) },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .menuAnchor(),
+                                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                         singleLine = true
                                     )

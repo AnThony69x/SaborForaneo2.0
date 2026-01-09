@@ -3,6 +3,7 @@ package com.example.saborforaneo.ui.screens.admin
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -266,7 +267,7 @@ fun PantallaPerfilAdmin(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Logout,
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -289,7 +290,7 @@ fun PantallaPerfilAdmin(
             onDismissRequest = { mostrarDialogoCerrarSesion = false },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Logout,
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(48.dp)

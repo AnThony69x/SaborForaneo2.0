@@ -16,208 +16,231 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Pruebas unitarias para DetalleRecetaViewModel
- *
- * Estas pruebas verifican que:
- * 1. Cuando una receta NO es favorita, alternarFavorito() la agrega a favoritos
- * 2. Cuando una receta SI es favorita, alternarFavorito() la quita de favoritos
- * 3. La receta se recarga después de cambiar el estado de favorito
+ * Tests del ViewModel de Detalle de Receta
+ * Prueba agregar/quitar favoritos y carga de datos
  */
+// Indica que esta clase usa funciones experimentales de coroutines
 @OptIn(ExperimentalCoroutinesApi::class)
+// Clase que contiene todas las pruebas del ViewModel
 class DetalleRecetaViewModelTest {
 
-    // Mocks de las dependencias
-    private lateinit var recetaRepository: RecetaRepository
+    // Variable para simular el repositorio de recetas
+    private lateinit var recetaRepository:  RecetaRepository
+    // Variable para simular el repositorio de Firestore
     private lateinit var firestoreRepository: FirestoreRepository
+    // Variable del ViewModel que vamos a probar
     private lateinit var viewModel: DetalleRecetaViewModel
-
-    // Dispatcher para pruebas de coroutines
+    // Dispatcher especial para controlar las coroutines en los tests
     private val testDispatcher = StandardTestDispatcher()
 
-    // Receta de prueba
+    // Receta de ejemplo para usar en las pruebas
     private val recetaTest = Receta(
-        id = "123",
-        nombre = "Tacos al Pastor",
-        descripcion = "Deliciosos tacos mexicanos",
+        id = "123", // ID único de la receta
+        nombre = "Tacos al Pastor", // Nombre de la receta
+        descripcion = "Deliciosos tacos mexicanos", // Descripción breve
+        // Lista de ingredientes necesarios
         ingredientes = listOf("Carne de cerdo", "Piña", "Cebolla", "Cilantro", "Tortillas"),
+        // Lista de pasos para preparar
         pasos = listOf(
             "Marinar la carne",
             "Asar la carne",
             "Calentar tortillas",
             "Servir con piña y cebolla"
         ),
-        categoria = "🌮 Comida Mexicana",
-        imagenUrl = "https://example.com/tacos.jpg",
-        esFavorito = false
+        categoria = "🌮 Comida Mexicana", // Categoría de la receta
+        imagenUrl = "https://example.com/tacos.jpg", // URL de la imagen
+        esFavorito = false // Por defecto NO es favorita
     )
 
+    // Este método se ejecuta ANTES de cada prueba
     @Before
     fun setup() {
-        // Configurar el dispatcher para las coroutines de prueba
+        // Reemplaza el dispatcher principal por uno de prueba
         Dispatchers.setMain(testDispatcher)
-
-        // Crear mocks de las dependencias
+        // Crea un objeto falso del repositorio de recetas
         recetaRepository = mock()
+        // Crea un objeto falso del repositorio de Firestore
         firestoreRepository = mock()
     }
 
+    // Este método se ejecuta DESPUÉS de cada prueba
     @After
     fun tearDown() {
-        // Restaurar el dispatcher original
+        // Restaura el dispatcher original
         Dispatchers.resetMain()
     }
 
-    // ============================================
-    // PRUEBA 1: Agregar a favoritos
-    // ============================================
+    // Prueba:  Agregar una receta a favoritos
     @Test
     fun `cuando la receta NO es favorita, alternarFavorito la agrega a favoritos`() = runTest {
-        // Given - Configurar el comportamiento de los mocks
+        // Cuando se pida la receta con ID "123"
         whenever(recetaRepository.obtenerRecetaPorId("123"))
-            .thenReturn(Result.success(recetaTest.copy(esFavorito = false)))
+            // Devuelve una receta que NO es favorita
+            .thenReturn(Result.success(recetaTest. copy(esFavorito = false)))
 
+        // Cuando se pregunte si es favorita
         whenever(firestoreRepository.esFavorito("123"))
-            .thenReturn(Result.success(false))  // Primera llamada: no es favorito
-            .thenReturn(Result.success(true))   // Segunda llamada: ya es favorito
+            .thenReturn(Result.success(false))  // Primera vez: NO es favorito
+            .thenReturn(Result. success(true))   // Segunda vez: SÍ es favorito
 
+        // Cuando se agregue a favoritos
         whenever(firestoreRepository.agregarFavorito("123"))
+            // Devuelve éxito
             .thenReturn(Result.success(Unit))
 
-        // Crear el ViewModel (esto ejecuta init { cargarReceta() })
+        // Crea el ViewModel (esto carga la receta automáticamente)
         viewModel = DetalleRecetaViewModel(recetaRepository, firestoreRepository, "123")
-        advanceUntilIdle() // Esperar a que termine cargarReceta()
+        // Espera a que termine de cargar
+        advanceUntilIdle()
 
-        // When - Ejecutar la acción que queremos probar
+        // Ejecuta el método que alterna el favorito
         viewModel.alternarFavorito()
-        advanceUntilIdle() // Esperar a que termine alternarFavorito()
+        // Espera a que termine
+        advanceUntilIdle()
 
-        // Then - Verificar los resultados
+        // Verifica que se llamó 1 vez a agregar favorito
         verify(firestoreRepository, times(1)).agregarFavorito("123")
+        // Verifica que NUNCA se llamó a quitar favorito
         verify(firestoreRepository, never()).quitarFavorito(any())
-
-        // Verificar que el estado se actualizó correctamente
+        // Verifica que ahora la receta SÍ es favorita
         assertTrue(viewModel.uiState.value.receta?.esFavorito == true)
     }
 
-    // ============================================
-    // PRUEBA 2: Quitar de favoritos
-    // ============================================
+    // Prueba: Quitar una receta de favoritos
     @Test
     fun `cuando la receta SI es favorita, alternarFavorito la quita de favoritos`() = runTest {
-        // Given
+        // Cuando se pida la receta con ID "123"
         whenever(recetaRepository.obtenerRecetaPorId("123"))
+            // Devuelve una receta que SÍ es favorita
             .thenReturn(Result.success(recetaTest.copy(esFavorito = true)))
 
+        // Cuando se pregunte si es favorita
         whenever(firestoreRepository.esFavorito("123"))
-            .thenReturn(Result.success(true))   // Primera llamada: es favorito
-            .thenReturn(Result.success(false))  // Segunda llamada: ya no es favorito
+            .thenReturn(Result.success(true))   // Primera vez: SÍ es favorito
+            .thenReturn(Result.success(false))  // Segunda vez: NO es favorito
 
+        // Cuando se quite de favoritos
         whenever(firestoreRepository.quitarFavorito("123"))
+            // Devuelve éxito
             .thenReturn(Result.success(Unit))
 
+        // Crea el ViewModel
         viewModel = DetalleRecetaViewModel(recetaRepository, firestoreRepository, "123")
+        // Espera a que termine de cargar
         advanceUntilIdle()
 
-        // When
+        // Ejecuta el método que alterna el favorito
         viewModel.alternarFavorito()
+        // Espera a que termine
         advanceUntilIdle()
 
-        // Then
+        // Verifica que se llamó 1 vez a quitar favorito
         verify(firestoreRepository, times(1)).quitarFavorito("123")
+        // Verifica que NUNCA se llamó a agregar favorito
         verify(firestoreRepository, never()).agregarFavorito(any())
-
-        // Verificar que el estado se actualizó correctamente
+        // Verifica que ahora la receta NO es favorita
         assertFalse(viewModel.uiState.value.receta?.esFavorito == true)
     }
 
-    // ============================================
-    // PRUEBA 3: Recarga de receta
-    // ============================================
+    // Prueba:  La receta se recarga despu��s de alternar favorito
     @Test
     fun `alternarFavorito recarga la receta despues de cambiar el estado`() = runTest {
-        // Given
-        whenever(recetaRepository.obtenerRecetaPorId("123"))
+        // Cuando se pida la receta
+        whenever(recetaRepository. obtenerRecetaPorId("123"))
+            // Devuelve la receta de prueba
             .thenReturn(Result.success(recetaTest))
 
+        // Cuando se pregunte si es favorita
         whenever(firestoreRepository.esFavorito("123"))
+            // Devuelve falso
             .thenReturn(Result.success(false))
 
+        // Cuando se agregue a favoritos
         whenever(firestoreRepository.agregarFavorito("123"))
-            .thenReturn(Result.success(Unit))
+            // Devuelve éxito
+            .thenReturn(Result. success(Unit))
 
+        // Crea el ViewModel (1ra carga de receta)
         viewModel = DetalleRecetaViewModel(recetaRepository, firestoreRepository, "123")
+        // Espera a que termine
         advanceUntilIdle()
 
-        // When
+        // Ejecuta alternar favorito (2da carga de receta)
         viewModel.alternarFavorito()
+        // Espera a que termine
         advanceUntilIdle()
 
-        // Then - Verificar que cargarReceta() se ejecutó 2 veces:
-        // 1. En el init {} del ViewModel
-        // 2. Después de alternarFavorito()
+        // Verifica que se cargó la receta 2 veces
         verify(recetaRepository, times(2)).obtenerRecetaPorId("123")
     }
 
-    // ============================================
-    // PRUEBA 4: Manejo de errores
-    // ============================================
+    // Prueba:  No hace nada si la receta es null
     @Test
     fun `alternarFavorito no hace nada si la receta es null`() = runTest {
-        // Given - Simular error al cargar receta
-        whenever(recetaRepository.obtenerRecetaPorId("123"))
+        // Cuando se pida la receta
+        whenever(recetaRepository. obtenerRecetaPorId("123"))
+            // Devuelve un error (receta no encontrada)
             .thenReturn(Result.failure(Exception("Receta no encontrada")))
 
+        // Crea el ViewModel (falla al cargar)
         viewModel = DetalleRecetaViewModel(recetaRepository, firestoreRepository, "123")
+        // Espera a que termine
         advanceUntilIdle()
 
-        // When
+        // Intenta alternar favorito (pero la receta es null)
         viewModel.alternarFavorito()
+        // Espera a que termine
         advanceUntilIdle()
 
-        // Then - No debe llamar a ningún método de favoritos
+        // Verifica que NUNCA se llamó a agregar favorito
         verify(firestoreRepository, never()).agregarFavorito(any())
+        // Verifica que NUNCA se llamó a quitar favorito
         verify(firestoreRepository, never()).quitarFavorito(any())
-
-        // El estado debe mostrar error
+        // Verifica que la receta es null
         assertNull(viewModel.uiState.value.receta)
-        assertTrue(viewModel.uiState.value.error?.isNotEmpty() == true)
+        // Verifica que hay un mensaje de error
+        assertTrue(viewModel.uiState.value.error?. isNotEmpty() == true)
     }
 
-    // ============================================
-    // PRUEBA 5: Estado inicial
-    // ============================================
+    // Prueba: El estado inicial es correcto
     @Test
     fun `el estado inicial debe tener cargando en true`() {
-        // Given
+        // Crea un estado inicial vacío
         val estado = DetalleRecetaUiState()
 
-        // Then
+        // Verifica que está en modo "cargando"
         assertTrue(estado.cargando)
+        // Verifica que no hay receta cargada
         assertNull(estado.receta)
-        assertNull(estado.error)
+        // Verifica que no hay errores
+        assertNull(estado. error)
     }
 
-    // ============================================
-    // PRUEBA 6: Carga exitosa de receta
-    // ============================================
+    // Prueba: La carga exitosa actualiza el estado
     @Test
     fun `cargarReceta actualiza el estado correctamente cuando es exitosa`() = runTest {
-        // Given
+        // Cuando se pida la receta
         whenever(recetaRepository.obtenerRecetaPorId("123"))
+            // Devuelve la receta de prueba exitosamente
             .thenReturn(Result.success(recetaTest))
 
+        // Cuando se pregunte si es favorita
         whenever(firestoreRepository.esFavorito("123"))
-            .thenReturn(Result.success(false))
+            // Devuelve falso
+            .thenReturn(Result. success(false))
 
-        // When
+        // Crea el ViewModel (carga la receta automáticamente)
         viewModel = DetalleRecetaViewModel(recetaRepository, firestoreRepository, "123")
+        // Espera a que termine de cargar
         advanceUntilIdle()
 
-        // Then
-        val estado = viewModel.uiState.value
+        // Obtiene el estado actual
+        val estado = viewModel. uiState.value
+        // Verifica que ya NO está cargando
         assertFalse(estado.cargando)
+        // Verifica que el nombre de la receta es correcto
         assertEquals("Tacos al Pastor", estado.receta?.nombre)
+        // Verifica que no hay errores
         assertNull(estado.error)
     }
 }
-

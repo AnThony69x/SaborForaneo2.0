@@ -423,7 +423,7 @@ fun PantallaDetalleReceta(
                         modifier = Modifier.padding(bottom = 12.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MenuBook,
+                            imageVector = Icons.Default.MenuBook, //cambiar por Icons.AutoMirrored.Filled.MenuBook
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(28.dp)

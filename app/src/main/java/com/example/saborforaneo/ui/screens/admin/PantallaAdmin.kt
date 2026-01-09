@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -144,7 +145,7 @@ fun PantallaAdmin(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Logout,
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -314,7 +315,7 @@ fun PantallaAdmin(
                         modifier = Modifier.weight(1f)
                     )
                     TarjetaEstadistica(
-                        icono = Icons.Default.TrendingUp,
+                        icono = Icons.AutoMirrored.Filled.TrendingUp,
                         titulo = "Hoy",
                         valor = "${estadisticas.recetasHoy}R / ${estadisticas.usuariosHoy}U",
                         color = MaterialTheme.colorScheme.error,
@@ -520,7 +521,7 @@ fun PantallaAdmin(
                 onDismissRequest = { mostrarDialogoCerrarSesion = false },
                 icon = {
                     Icon(
-                        imageVector = Icons.Default.Logout,
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(48.dp)
@@ -584,7 +585,7 @@ fun PantallaAdmin(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ExitToApp,
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )

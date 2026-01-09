@@ -426,34 +426,46 @@ fun PantallaCrearReceta(
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    OutlinedTextField(
-                        value = tiempoPreparacion,
-                        onValueChange = { 
-                            if (it.all { char -> char.isDigit() } && it.length <= 4) {
-                                tiempoPreparacion = it
-                            }
-                        },
-                        label = { Text("Tiempo (min) *") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Timer, null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                    OutlinedTextField(
-                        value = porciones,
-                        onValueChange = { 
-                            if (it.all { char -> char.isDigit() } && it.length <= 3) {
-                                porciones = it
-                            }
-                        },
-                        label = { Text("Porciones *") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Restaurant, null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
+                    Box(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = tiempoPreparacion,
+                            onValueChange = { 
+                                if (it.all { char -> char.isDigit() } && it.length <= 4) {
+                                    tiempoPreparacion = it
+                                }
+                            },
+                            label = { Text("Tiempo (min) *") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Default.Timer, null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Box(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = porciones,
+                            onValueChange = { 
+                                if (it.all { char -> char.isDigit() } && it.length <= 3) {
+                                    porciones = it
+                                }
+                            },
+                            label = { Text("Porciones *") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Default.Restaurant, null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
                 }
             }
 
