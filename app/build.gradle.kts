@@ -149,6 +149,19 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
+    // ============================================
+    // DEPENDENCIAS PARA PRUEBAS UNITARIAS
+    // ============================================
+    // Mockito para crear mocks de dependencias
+    testImplementation("org.mockito:mockito-core:5.3.1")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+
+    // Coroutines Test para probar código asíncrono
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
+    // Kotlin Test para assertions más expresivas
+    testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.22")
+
     // Debug
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

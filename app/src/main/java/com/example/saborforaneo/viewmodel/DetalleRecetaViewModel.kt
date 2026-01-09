@@ -17,12 +17,21 @@ data class DetalleRecetaUiState(
     val error: String? = null
 )
 
+// ============================================
+// VERSIÓN REFACTORIZADA PARA PRUEBAS UNITARIAS
+// ============================================
 class DetalleRecetaViewModel(
-    private val context: Context,
+    private val recetaRepository: RecetaRepository,
+    private val firestoreRepository: FirestoreRepository,
     private val recetaId: String
 ) : ViewModel() {
-    private val recetaRepository = RecetaRepository(context)
-    private val firestoreRepository = FirestoreRepository()
+
+    // Constructor secundario para mantener compatibilidad con el código existente
+    constructor(context: Context, recetaId: String) : this(
+        RecetaRepository(context),
+        FirestoreRepository(),
+        recetaId
+    )
 
     private val _uiState = MutableStateFlow(DetalleRecetaUiState())
     val uiState: StateFlow<DetalleRecetaUiState> = _uiState.asStateFlow()
@@ -30,6 +39,23 @@ class DetalleRecetaViewModel(
     init {
         cargarReceta()
     }
+
+// ============================================
+// VERSIÓN ORIGINAL (COMENTADA)
+// ============================================
+//class DetalleRecetaViewModel(
+//    private val context: Context,
+//    private val recetaId: String
+//) : ViewModel() {
+//    private val recetaRepository = RecetaRepository(context)
+//    private val firestoreRepository = FirestoreRepository()
+//
+//    private val _uiState = MutableStateFlow(DetalleRecetaUiState())
+//    val uiState: StateFlow<DetalleRecetaUiState> = _uiState.asStateFlow()
+//
+//    init {
+//        cargarReceta()
+//    }
 
     private fun cargarReceta() {
         viewModelScope.launch {

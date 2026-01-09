@@ -29,7 +29,8 @@ import com.example.saborforaneo.util.soloLetrasYEspacios
 import com.example.saborforaneo.util.porcentajeDeUso
 import com.example.saborforaneo.util.contarLineasNoVacias
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DialogoFormularioReceta(
     titulo: String,
