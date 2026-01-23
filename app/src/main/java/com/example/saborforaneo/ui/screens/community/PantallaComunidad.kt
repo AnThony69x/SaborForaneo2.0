@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.saborforaneo.data.model.RecetaComunidad
 import com.example.saborforaneo.ui.components.BarraNavegacionInferior
+import com.example.saborforaneo.ui.components.DialogoRequiereAuth
+import com.example.saborforaneo.ui.components.MensajesAuth
+import com.example.saborforaneo.ui.navigation.Rutas
 import com.example.saborforaneo.viewmodel.ComunidadViewModel
 import com.example.saborforaneo.viewmodel.VistaComunidad
 import com.google.firebase.auth.FirebaseAuth
@@ -52,12 +56,48 @@ fun PantallaComunidad(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Verificar autenticación
+    val usuarioActual = FirebaseAuth.getInstance().currentUser
+    val estaAutenticado = usuarioActual != null
+
+    // Estado para mostrar diálogo de autenticación
+    var mostrarDialogoAuth by remember { mutableStateOf(false) }
+
+    // Mostrar diálogo automáticamente si no está autenticado
+    LaunchedEffect(estaAutenticado) {
+        if (!estaAutenticado) {
+            mostrarDialogoAuth = true
+        }
+    }
+
     // Mostrar error si existe
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             snackbarHostState.showSnackbar(error)
             viewModel.limpiarError()
         }
+    }
+
+    // Diálogo de autenticación requerida
+    if (mostrarDialogoAuth && !estaAutenticado) {
+        DialogoRequiereAuth(
+            titulo = MensajesAuth.COMUNIDAD.first,
+            mensaje = MensajesAuth.COMUNIDAD.second,
+            emoji = MensajesAuth.COMUNIDAD.third,
+            onDismiss = {
+                mostrarDialogoAuth = false
+                // Navegar de regreso
+                navegarAtras()
+            },
+            onIniciarSesion = {
+                mostrarDialogoAuth = false
+                controladorNav.navigate(Rutas.Login.ruta)
+            },
+            onRegistrarse = {
+                mostrarDialogoAuth = false
+                controladorNav.navigate(Rutas.Registro.ruta)
+            }
+        )
     }
 
     Scaffold(
@@ -70,21 +110,23 @@ fun PantallaComunidad(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        viewModel.cambiarVista(
-                            if (uiState.vistaActual == VistaComunidad.TODAS)
-                                VistaComunidad.MIS_RECETAS
-                            else
-                                VistaComunidad.TODAS
-                        )
-                    }) {
-                        Icon(
-                            imageVector = if (uiState.vistaActual == VistaComunidad.TODAS)
-                                Icons.Default.Person
-                            else
-                                Icons.Default.Public,
-                            contentDescription = "Cambiar vista"
-                        )
+                    if (estaAutenticado) {
+                        IconButton(onClick = {
+                            viewModel.cambiarVista(
+                                if (uiState.vistaActual == VistaComunidad.TODAS)
+                                    VistaComunidad.MIS_RECETAS
+                                else
+                                    VistaComunidad.TODAS
+                            )
+                        }) {
+                            Icon(
+                                imageVector = if (uiState.vistaActual == VistaComunidad.TODAS)
+                                    Icons.Default.Person
+                                else
+                                    Icons.Default.Public,
+                                contentDescription = "Cambiar vista"
+                            )
+                        }
                     }
                 }
             )
@@ -93,7 +135,7 @@ fun PantallaComunidad(
             BarraNavegacionInferior(controladorNav = controladorNav)
         },
         floatingActionButton = {
-            if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
+            if (estaAutenticado && uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
                 FloatingActionButton(
                     onClick = navegarACrearReceta,
                     containerColor = MaterialTheme.colorScheme.primary
@@ -104,111 +146,157 @@ fun PantallaComunidad(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Tabs
-            TabRow(
-                selectedTabIndex = if (uiState.vistaActual == VistaComunidad.TODAS) 0 else 1,
-                containerColor = MaterialTheme.colorScheme.surface
+        // Si no está autenticado, mostrar mensaje
+        if (!estaAutenticado) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Tab(
-                    selected = uiState.vistaActual == VistaComunidad.TODAS,
-                    onClick = { viewModel.cambiarVista(VistaComunidad.TODAS) },
-                    text = { Text("🌎 Todas") }
-                )
-                Tab(
-                    selected = uiState.vistaActual == VistaComunidad.MIS_RECETAS,
-                    onClick = { viewModel.cambiarVista(VistaComunidad.MIS_RECETAS) },
-                    text = { Text("📝 Mis Recetas") }
-                )
-            }
-
-            // Contenido
-            if (uiState.cargando) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    CircularProgressIndicator()
+                    Text(
+                        text = "👨‍🍳",
+                        fontSize = 72.sp
+                    )
+                    Text(
+                        text = "Únete a la comunidad",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Crea una cuenta para compartir tus propias recetas, comentar y conectar con otros amantes de la cocina",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { mostrarDialogoAuth = true },
+                        modifier = Modifier.fillMaxWidth(0.7f)
+                    ) {
+                        Text("Crear cuenta")
+                    }
+                    OutlinedButton(
+                        onClick = { controladorNav.navigate(Rutas.Login.ruta) },
+                        modifier = Modifier.fillMaxWidth(0.7f)
+                    ) {
+                        Text("Iniciar sesión")
+                    }
                 }
-            } else {
-                val recetasMostrar = if (uiState.vistaActual == VistaComunidad.TODAS)
-                    uiState.recetas
-                else
-                    uiState.misRecetas
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Tabs
+                TabRow(
+                    selectedTabIndex = if (uiState.vistaActual == VistaComunidad.TODAS) 0 else 1,
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    Tab(
+                        selected = uiState.vistaActual == VistaComunidad.TODAS,
+                        onClick = { viewModel.cambiarVista(VistaComunidad.TODAS) },
+                        text = { Text("🌎 Todas") }
+                    )
+                    Tab(
+                        selected = uiState.vistaActual == VistaComunidad.MIS_RECETAS,
+                        onClick = { viewModel.cambiarVista(VistaComunidad.MIS_RECETAS) },
+                        text = { Text("📝 Mis Recetas") }
+                    )
+                }
 
-                if (recetasMostrar.isEmpty()) {
+                // Contenido
+                if (uiState.cargando) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(32.dp)
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    val recetasMostrar = if (uiState.vistaActual == VistaComunidad.TODAS)
+                        uiState.recetas
+                    else
+                        uiState.misRecetas
+
+                    if (recetasMostrar.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = if (uiState.vistaActual == VistaComunidad.TODAS) "🍽️" else "📝",
-                                fontSize = 64.sp
-                            )
-                            Text(
-                                text = if (uiState.vistaActual == VistaComunidad.TODAS)
-                                    "No hay recetas en la comunidad"
-                                else
-                                    "No tienes recetas creadas",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(onClick = navegarACrearReceta) {
-                                    Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Crear mi primera receta")
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(32.dp)
+                            ) {
+                                Text(
+                                    text = if (uiState.vistaActual == VistaComunidad.TODAS) "🍽️" else "📝",
+                                    fontSize = 64.sp
+                                )
+                                Text(
+                                    text = if (uiState.vistaActual == VistaComunidad.TODAS)
+                                        "No hay recetas en la comunidad"
+                                    else
+                                        "No tienes recetas creadas",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(onClick = navegarACrearReceta) {
+                                        Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Crear mi primera receta")
+                                    }
                                 }
                             }
                         }
-                    }
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(
-                            items = recetasMostrar,
-                            key = { it.id }
-                        ) { receta ->
-                            TarjetaRecetaComunidad(
-                                receta = receta,
-                                onLikeClick = { viewModel.toggleLike(receta.id) },
-                                onVerDetalle = { navegarADetalle(receta.id, false) },
-                                onVerComentarios = { navegarADetalle(receta.id, true) },
-                                onEditClick = if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
-                                    { /* TODO: Navegar a editar */ }
-                                } else null,
-                                onDeleteClick = if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
-                                    {
-                                        scope.launch {
-                                            viewModel.eliminarReceta(
-                                                receta.id,
-                                                onSuccess = {
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar("Receta eliminada")
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(
+                                items = recetasMostrar,
+                                key = { it.id }
+                            ) { receta ->
+                                TarjetaRecetaComunidad(
+                                    receta = receta,
+                                    onLikeClick = { viewModel.toggleLike(receta.id) },
+                                    onVerDetalle = { navegarADetalle(receta.id, false) },
+                                    onVerComentarios = { navegarADetalle(receta.id, true) },
+                                    onEditClick = if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
+                                        { /* TODO: Navegar a editar */ }
+                                    } else null,
+                                    onDeleteClick = if (uiState.vistaActual == VistaComunidad.MIS_RECETAS) {
+                                        {
+                                            scope.launch {
+                                                viewModel.eliminarReceta(
+                                                    receta.id,
+                                                    onSuccess = {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Receta eliminada")
+                                                        }
+                                                    },
+                                                    onError = { error ->
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar(error)
+                                                        }
                                                     }
-                                                },
-                                                onError = { error ->
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar(error)
-                                                    }
-                                                }
-                                            )
+                                                )
+                                            }
                                         }
-                                    }
-                                } else null
-                            )
+                                    } else null
+                                )
+                            }
                         }
                     }
                 }

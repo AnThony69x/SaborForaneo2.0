@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.saborforaneo.data.model.Receta
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun TarjetaReceta(
@@ -32,10 +33,14 @@ fun TarjetaReceta(
     modifier: Modifier = Modifier,
     mostrarDescripcion: Boolean = true,
     esFavorito: Boolean = receta.esFavorito,
-    onToggleFavorito: ((String) -> Unit)? = null
+    onToggleFavorito: ((String) -> Unit)? = null,
+    onRequiereAuth: (() -> Unit)? = null
 ) {
     val contexto = LocalContext.current
     var esFavoritoLocal by remember(esFavorito) { mutableStateOf(esFavorito) }
+
+    // Verificar si el usuario está autenticado
+    val estaAutenticado = FirebaseAuth.getInstance().currentUser != null
 
     val escalaFavorito = remember { Animatable(1f) }
     val rotacionFavorito = remember { Animatable(0f) }
@@ -120,8 +125,13 @@ fun TarjetaReceta(
                 // Botón de favoritos
                 Surface(
                     onClick = {
-                        esFavoritoLocal = !esFavoritoLocal
-                        onToggleFavorito?.invoke(receta.id)
+                        if (estaAutenticado) {
+                            esFavoritoLocal = !esFavoritoLocal
+                            onToggleFavorito?.invoke(receta.id)
+                        } else {
+                            // Usuario no autenticado - mostrar diálogo
+                            onRequiereAuth?.invoke()
+                        }
                     },
                     modifier = Modifier
                         .align(Alignment.TopEnd)

@@ -37,9 +37,13 @@ import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.components.ChipFiltro
 import com.example.saborforaneo.ui.components.TarjetaReceta
 import com.example.saborforaneo.ui.components.TarjetaRecetaSkeleton
+import com.example.saborforaneo.ui.components.DialogoRequiereAuth
+import com.example.saborforaneo.ui.components.MensajesAuth
+import com.example.saborforaneo.ui.navigation.Rutas
 import com.example.saborforaneo.ui.screens.chat.PantallaChat
 import com.example.saborforaneo.viewmodel.HomeViewModel
 import com.example.saborforaneo.util.Categorias
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -63,6 +67,14 @@ fun PantallaInicio(
 
     // Estado para controlar el diálogo del chat
     var mostrarChat by remember { mutableStateOf(false) }
+
+    // Estado para diálogo de autenticación requerida
+    var mostrarDialogoAuth by remember { mutableStateOf(false) }
+    var tipoDialogoAuth by remember { mutableStateOf("chat") } // "chat" o "favoritos"
+
+    // Verificar autenticación
+    val usuarioActual = FirebaseAuth.getInstance().currentUser
+    val estaAutenticado = usuarioActual != null
 
     var ubicacionTexto by remember { mutableStateOf<String?>(null) }
 
@@ -365,6 +377,10 @@ fun PantallaInicio(
                                     alHacerClick = { navegarADetalle(receta.id) },
                                     esFavorito = receta.esFavorito,
                                     onToggleFavorito = { homeViewModel.toggleFavorito(it) },
+                                    onRequiereAuth = {
+                                        tipoDialogoAuth = "favoritos"
+                                        mostrarDialogoAuth = true
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }
@@ -377,7 +393,14 @@ fun PantallaInicio(
 
         // Botón flotante animado para el Chat con IA (más pequeño, en la parte inferior)
         FloatingActionButton(
-            onClick = { mostrarChat = true },
+            onClick = {
+                if (estaAutenticado) {
+                    mostrarChat = true
+                } else {
+                    tipoDialogoAuth = "chat"
+                    mostrarDialogoAuth = true
+                }
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 100.dp, end = 16.dp)
@@ -398,6 +421,25 @@ fun PantallaInicio(
                 modifier = Modifier.size(24.dp)
             )
         }
+    }
+
+    // Diálogo de autenticación requerida para el Chat o Favoritos
+    if (mostrarDialogoAuth) {
+        val mensajes = if (tipoDialogoAuth == "chat") MensajesAuth.ASISTENTE else MensajesAuth.FAVORITOS
+        DialogoRequiereAuth(
+            titulo = mensajes.first,
+            mensaje = mensajes.second,
+            emoji = mensajes.third,
+            onDismiss = { mostrarDialogoAuth = false },
+            onIniciarSesion = {
+                mostrarDialogoAuth = false
+                controladorNav.navigate(Rutas.Login.ruta)
+            },
+            onRegistrarse = {
+                mostrarDialogoAuth = false
+                controladorNav.navigate(Rutas.Registro.ruta)
+            }
+        )
     }
 
     // Diálogo del Chat con Gemini

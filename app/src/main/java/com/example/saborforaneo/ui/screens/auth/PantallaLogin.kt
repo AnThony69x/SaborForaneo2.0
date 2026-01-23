@@ -370,6 +370,23 @@ fun PantallaLogin(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Botón de Continuar como invitado
+            TextButton(
+                onClick = { navegarAInicio() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                enabled = !cargando
+            ) {
+                Text(
+                    text = "Continuar como invitado",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center

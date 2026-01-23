@@ -21,6 +21,7 @@ import com.example.saborforaneo.ui.screens.search.PantallaBusqueda
 import com.example.saborforaneo.ui.screens.detail.PantallaDetalleReceta
 import com.example.saborforaneo.ui.screens.favorites.PantallaFavoritos
 import com.example.saborforaneo.ui.screens.profile.PantallaPerfil
+import com.example.saborforaneo.ui.screens.profile.PantallaPerfilInvitado
 import com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 import com.example.saborforaneo.ui.screens.auth.PantallaTerminosCondiciones
 import com.example.saborforaneo.ui.screens.admin.PantallaAdmin
@@ -30,6 +31,7 @@ import com.example.saborforaneo.ui.screens.community.PantallaDetalleRecetaComuni
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
 import com.example.saborforaneo.viewmodel.HomeViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -114,6 +116,7 @@ fun GrafoNavegacion(
         ) {
             PantallaOnboarding(
                 alFinalizar = {
+                    // Ir al Login (con opción de continuar como invitado)
                     controladorNav.navigate(Rutas.Login.ruta) {
                         popUpTo(Rutas.Onboarding.ruta) { inclusive = true }
                     }
@@ -335,16 +338,29 @@ fun GrafoNavegacion(
         }
 
         composable(route = Rutas.Perfil.ruta) {
-            PantallaPerfil(
-                navegarALogin = {
-                    controladorNav.navigate(Rutas.Login.ruta) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                controladorNav = controladorNav,
-                modeloVista = perfilViewModel,
-                authViewModel = authViewModel
-            )
+            // Verificar si el usuario está autenticado
+            val usuarioActual = FirebaseAuth.getInstance().currentUser
+
+            if (usuarioActual != null) {
+                // Usuario autenticado - mostrar perfil completo
+                PantallaPerfil(
+                    navegarALogin = {
+                        controladorNav.navigate(Rutas.Login.ruta) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    controladorNav = controladorNav,
+                    modeloVista = perfilViewModel,
+                    authViewModel = authViewModel
+                )
+            } else {
+                // Usuario no autenticado - mostrar pantalla de invitado
+                PantallaPerfilInvitado(
+                    controladorNav = controladorNav,
+                    authViewModel = authViewModel,
+                    perfilViewModel = perfilViewModel
+                )
+            }
         }
 
         composable(route = Rutas.Comunidad.ruta) {

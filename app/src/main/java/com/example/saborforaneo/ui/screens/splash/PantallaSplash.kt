@@ -111,6 +111,7 @@ fun PantallaSplash(
                     navegarAInicio()
                 }
             }
+            // Usuario no autenticado: ir a Login (con opción de continuar como invitado)
             else -> navegarALogin()
         }
     }
