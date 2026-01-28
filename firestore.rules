@@ -3,82 +3,174 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Función para verificar si es admin
+    // ============================================
+    // FUNCIÓN PARA VERIFICAR SI ES ADMIN
+    // ============================================
     function esAdmin() {
       return request.auth != null &&
              exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+             (get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin' ||
+              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.esAdmin == true);
     }
 
-    // Usuarios
+    // ============================================
+    // USUARIOS - Gestión completa de usuarios
+    // ============================================
     match /usuarios/{userId} {
-      allow read: if request.auth != null &&
-                     (request.auth.uid == userId || esAdmin());
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Lectura: cualquier usuario autenticado puede leer (necesario para listar en admin)
+      allow read: if request.auth != null;
+
+      // Crear: solo el propio usuario puede crear su perfil
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Actualizar: el propio usuario puede actualizar su perfil,
+      // o un admin puede actualizar CUALQUIER campo (para banear, cambiar rol, etc.)
+      allow update: if request.auth != null &&
+                       (request.auth.uid == userId || esAdmin());
+
+      // Eliminar: solo admins pueden eliminar usuarios
+      allow delete: if request.auth != null && esAdmin();
     }
 
-    // Recetas - Todas gestionadas por admin en Firestore
+    // ============================================
+    // RECETAS OFICIALES - Solo admin puede gestionar
+    // ============================================
     match /recetas/{recetaId} {
-      allow read: if true; // Lectura pública para todos los usuarios
+      allow read: if true; // Lectura pública
       allow create: if request.auth != null && esAdmin();
       allow update: if request.auth != null && esAdmin();
       allow delete: if request.auth != null && esAdmin();
     }
 
-    // RECETAS COMUNIDAD (sin guión bajo) - REGLAS ANTIGUAS MANTENIDAS
+    // ============================================
+    // RECETAS DE COMUNIDAD (colección: recetasComunidad)
+    // ============================================
     match /recetasComunidad/{recetaId} {
+      // Lectura pública
       allow read: if true;
+
+      // Crear: usuarios autenticados pueden crear sus propias recetas
       allow create: if request.auth != null &&
                        request.resource.data.autorUid == request.auth.uid;
+
+      // Actualizar: el autor, admin, o cualquiera que actualice likes
       allow update: if request.auth != null &&
-                       (resource.data.autorUid == request.auth.uid ||
-                        request.resource.data.keys().hasAll(['likes', 'usuariosQueLikean']) ||
-                        esAdmin());
+                       (esAdmin() ||
+                        resource.data.autorUid == request.auth.uid ||
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'usuariosQueLikean']));
+
+      // Eliminar: solo el autor o admin
       allow delete: if request.auth != null &&
                        (resource.data.autorUid == request.auth.uid || esAdmin());
     }
 
-    // RECETAS COMUNIDAD (con guión bajo) - NUEVAS REGLAS PARA ADMIN
+    // ============================================
+    // RECETAS DE COMUNIDAD (colección: recetas_comunidad)
+    // ============================================
     match /recetas_comunidad/{recetaId} {
+      // Lectura pública
       allow read: if true;
+
+      // Crear: usuarios autenticados pueden crear sus propias recetas
       allow create: if request.auth != null &&
                        request.resource.data.autorUid == request.auth.uid;
+
+      // Actualizar: admin, el autor, o cualquiera que actualice likes
       allow update: if request.auth != null &&
                        (esAdmin() || 
                         resource.data.autorUid == request.auth.uid ||
-                        request.resource.data.keys().hasAll(['likes', 'usuariosQueLikean']));
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'usuariosQueLikean']));
+
+      // Eliminar: solo admin
       allow delete: if request.auth != null && esAdmin();
     }
 
-    // Comentarios de recetas de comunidad
+    // ============================================
+    // COMENTARIOS DE RECETAS DE COMUNIDAD
+    // ============================================
     match /comentarios_recetas/{comentarioId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null &&
-                               (esAdmin() || resource.data.autorUid == request.auth.uid);
+      allow update: if request.auth != null &&
+                       (esAdmin() || resource.data.autorUid == request.auth.uid);
+      allow delete: if request.auth != null &&
+                       (esAdmin() || resource.data.autorUid == request.auth.uid);
     }
 
-    // Comentarios generales
+    // ============================================
+    // COMENTARIOS GENERALES
+    // ============================================
     match /comentarios/{comentarioId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow update: if request.auth != null &&
+                       (esAdmin() ||
+                        resource.data.autorUid == request.auth.uid ||
+                        resource.data.userId == request.auth.uid);
       allow delete: if request.auth != null &&
-                       (resource.data.autorUid == request.auth.uid ||
-                        resource.data.userId == request.auth.uid ||
-                        esAdmin());
+                       (esAdmin() ||
+                        resource.data.autorUid == request.auth.uid ||
+                        resource.data.userId == request.auth.uid);
     }
 
-    // Favoritos
+    // ============================================
+    // FAVORITOS
+    // ============================================
     match /favoritos/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Favoritos por usuario
+    // Favoritos como subcolección de usuarios
     match /usuarios/{userId}/recetasFavoritas/{recetaId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ============================================
+    // NOTIFICACIONES
+    // ============================================
+    match /notificaciones/{notificacionId} {
+      allow read: if request.auth != null &&
+                     (resource.data.usuarioId == request.auth.uid || esAdmin());
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+                       (resource.data.usuarioId == request.auth.uid || esAdmin());
+      allow delete: if request.auth != null &&
+                       (resource.data.usuarioId == request.auth.uid || esAdmin());
+    }
+
+    // ============================================
+    // REPORTES DE USUARIOS/CONTENIDO
+    // ============================================
+    match /reportes/{reporteId} {
+      allow read: if request.auth != null && esAdmin();
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && esAdmin();
+      allow delete: if request.auth != null && esAdmin();
+    }
+
+    // ============================================
+    // ESTADÍSTICAS (solo lectura para admins)
+    // ============================================
+    match /estadisticas/{docId} {
+      allow read: if request.auth != null && esAdmin();
+      allow write: if request.auth != null && esAdmin();
+    }
+
+    // ============================================
+    // CONFIGURACIÓN DE LA APP
+    // ============================================
+    match /configuracion/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && esAdmin();
+    }
+
+    // ============================================
+    // RESPALDOS (solo admins)
+    // ============================================
+    match /respaldos/{respaldoId} {
+      allow read: if request.auth != null && esAdmin();
+      allow write: if request.auth != null && esAdmin();
+    }
   }
 }
-

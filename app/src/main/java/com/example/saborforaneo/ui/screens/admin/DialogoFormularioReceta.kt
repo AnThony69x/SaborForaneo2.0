@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.data.model.Dificultad
 import com.example.saborforaneo.data.model.Precio
 import com.example.saborforaneo.data.model.Receta
@@ -267,8 +269,14 @@ fun DialogoFormularioReceta(
                                                 )
                                             }
                                         } else {
+                                            val context = androidx.compose.ui.platform.LocalContext.current
                                             AsyncImage(
-                                                model = imagenUrl,
+                                                model = ImageRequest.Builder(context)
+                                                    .data(imagenUrl)
+                                                    .crossfade(true)
+                                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                                    .build(),
                                                 contentDescription = "Vista previa",
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentScale = ContentScale.Crop,
@@ -326,7 +334,7 @@ fun DialogoFormularioReceta(
                                 OutlinedTextField(
                                     value = tiempoPreparacion,
                                     onValueChange = { tiempoPreparacion = it.filter { c -> c.isDigit() } },
-                                    label = { Text("Tiempo (min)") },
+                                    label = { Text("Min *") },
                                     leadingIcon = { Icon(Icons.Default.Timer, null) },
                                     modifier = Modifier.weight(1f),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -336,7 +344,7 @@ fun DialogoFormularioReceta(
                                 OutlinedTextField(
                                     value = porciones,
                                     onValueChange = { porciones = it.filter { c -> c.isDigit() } },
-                                    label = { Text("Porciones") },
+                                    label = { Text("Porc. *") },
                                     leadingIcon = { Icon(Icons.Default.People, null) },
                                     modifier = Modifier.weight(1f),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

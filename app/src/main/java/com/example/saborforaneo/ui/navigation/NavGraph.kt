@@ -3,6 +3,9 @@ package com.example.saborforaneo.ui.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,6 +31,7 @@ import com.example.saborforaneo.ui.screens.admin.PantallaAdmin
 import com.example.saborforaneo.ui.screens.admin.PantallaGestionRecetas
 import com.example.saborforaneo.ui.screens.community.PantallaComunidad
 import com.example.saborforaneo.ui.screens.community.PantallaDetalleRecetaComunidad
+import com.example.saborforaneo.viewmodel.AuthState
 import com.example.saborforaneo.viewmodel.AuthViewModel
 import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
 import com.example.saborforaneo.viewmodel.HomeViewModel
@@ -45,7 +49,17 @@ fun GrafoNavegacion(
     // Crear instancias compartidas de ViewModels para todas las pantallas
     val authViewModel: AuthViewModel = viewModel()
     val homeViewModel = remember { HomeViewModel(context) }
-    
+    val authState by authViewModel.authState.collectAsState()
+
+    // Observar si el usuario está baneado y redirigir al login
+    LaunchedEffect(authState) {
+        if (authState is AuthState.UsuarioBaneado) {
+            controladorNav.navigate(Rutas.Login.ruta) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     NavHost(
         navController = controladorNav,
         startDestination = pantallaInicio,
@@ -253,6 +267,19 @@ fun GrafoNavegacion(
         composable(route = Rutas.GestionUsuarios.ruta) {
             com.example.saborforaneo.ui.screens.admin.PantallaGestionUsuarios(
                 controladorNav = controladorNav
+            )
+        }
+
+        composable(route = Rutas.GestionComunidad.ruta) {
+            com.example.saborforaneo.ui.screens.admin.PantallaGestionComunidad(
+                controladorNav = controladorNav
+            )
+        }
+
+        composable(route = Rutas.Moderacion.ruta) {
+            com.example.saborforaneo.ui.screens.admin.PantallaModeracion(
+                controladorNav = controladorNav,
+                authViewModel = authViewModel
             )
         }
 

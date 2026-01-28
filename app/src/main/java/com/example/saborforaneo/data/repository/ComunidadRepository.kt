@@ -40,9 +40,9 @@ class ComunidadRepository {
      * Observar recetas de la comunidad en tiempo real
      */
     fun observarRecetasComunidad(): Flow<List<RecetaComunidad>> = callbackFlow {
+        // Consulta simplificada: solo recetas publicadas y activas
         val listener = db.collection(COLLECTION_RECETAS_COMUNIDAD)
-            .whereEqualTo("activa", true)
-            .whereEqualTo("moderada", true)
+            .whereEqualTo("publicada", true)
             .orderBy("fechaCreacion", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -52,6 +52,10 @@ class ComunidadRepository {
 
                 val recetas = snapshot?.documents?.mapNotNull { doc ->
                     try {
+                        // Solo incluir si está activa (o si no tiene el campo, asumir true)
+                        val activa = doc.getBoolean("activa") ?: true
+                        if (!activa) return@mapNotNull null
+
                         RecetaComunidad(
                             id = doc.id,
                             nombre = doc.getString("nombre") ?: "",

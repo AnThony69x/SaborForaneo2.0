@@ -19,7 +19,9 @@ sealed class Rutas(val ruta: String) {
     object GestionRecetas : Rutas("gestion_recetas")
     object Dashboard : Rutas("dashboard")
     object GestionUsuarios : Rutas("gestion_usuarios")
-    
+    object GestionComunidad : Rutas("gestion_comunidad")
+    object Moderacion : Rutas("moderacion")
+
     object Busqueda : Rutas("busqueda")
     object Favoritos : Rutas("favoritos")
     object Perfil : Rutas("perfil")

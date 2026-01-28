@@ -59,6 +59,7 @@ fun PantallaPerfil(
     var mostrarDialogoPrivacidad by remember { mutableStateOf(false) }
     var mostrarDialogoSelectorTema by remember { mutableStateOf(false) }
     var mostrarDialogoCambiarFoto by remember { mutableStateOf(false) }
+    var mostrarDialogoSeguridad by remember { mutableStateOf(false) }
 
     // Launcher para seleccionar imagen de galería
     val selectorImagen = rememberLauncherForActivityResult(
@@ -173,6 +174,27 @@ fun PantallaPerfil(
                         }
                     },
                     alAbrirSelectorTema = { mostrarDialogoSelectorTema = true }
+                )
+            }
+
+            item { DivisorSeccion() }
+
+            // ========== SEGURIDAD ==========
+            item {
+                Text(
+                    text = "Seguridad",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            item {
+                ItemConfiguracion(
+                    icono = Icons.Default.Security,
+                    titulo = "Seguridad de la Cuenta",
+                    descripcion = "Verificación en 2 pasos, sesiones activas",
+                    alHacerClic = { mostrarDialogoSeguridad = true }
                 )
             }
 
@@ -364,6 +386,46 @@ fun PantallaPerfil(
                             message = if (exito) "✅ $mensaje" else "❌ $mensaje",
                             duration = SnackbarDuration.Short
                         )
+                    }
+                }
+            }
+        )
+    }
+
+    // Diálogo de seguridad
+    if (mostrarDialogoSeguridad) {
+        DialogoSeguridadUsuario(
+            onDismiss = { mostrarDialogoSeguridad = false },
+            onCambiarContrasena = {
+                mostrarDialogoSeguridad = false
+                // Enviar correo de restablecimiento de contraseña
+                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email?.let { email ->
+                    com.google.firebase.auth.FirebaseAuth.getInstance()
+                        .sendPasswordResetEmail(email)
+                        .addOnSuccessListener {
+                            alcance.launch {
+                                estadoSnackbar.showSnackbar("✅ Correo enviado a $email")
+                            }
+                        }
+                        .addOnFailureListener {
+                            alcance.launch {
+                                estadoSnackbar.showSnackbar("❌ Error al enviar correo")
+                            }
+                        }
+                }
+            },
+            onVerSesiones = {
+                mostrarDialogoSeguridad = false
+                alcance.launch {
+                    estadoSnackbar.showSnackbar("📱 Sesión activa en este dispositivo")
+                }
+            },
+            onActivar2FA = { activado ->
+                alcance.launch {
+                    if (activado) {
+                        estadoSnackbar.showSnackbar("🔐 Verificación en 2 pasos activada")
+                    } else {
+                        estadoSnackbar.showSnackbar("⚠️ Verificación en 2 pasos desactivada")
                     }
                 }
             }

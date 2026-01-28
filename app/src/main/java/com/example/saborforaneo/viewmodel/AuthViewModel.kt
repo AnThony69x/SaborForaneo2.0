@@ -22,6 +22,7 @@ sealed class AuthState {
     data class Success(val user: FirebaseUser?) : AuthState()
     data class Error(val message: String) : AuthState()
     data class NecesitaContrasena(val email: String, val nombre: String, val idToken: String) : AuthState()
+    object UsuarioBaneado : AuthState()
 }
 
 class AuthViewModel : ViewModel() {
@@ -64,10 +65,13 @@ class AuthViewModel : ViewModel() {
         _currentUser.value = usuarioActual
 
         if (usuarioActual != null) {
-            // Solo verificar el rol si hay un usuario autenticado
-            _authState.value = AuthState.Success(usuarioActual)
+            // Verificar si el usuario está baneado
             viewModelScope.launch {
-                verificarRolUsuario()
+                val puedeAcceder = verificarRolUsuario()
+                if (puedeAcceder) {
+                    _authState.value = AuthState.Success(usuarioActual)
+                }
+                // Si está baneado, verificarRolUsuario ya estableció AuthState.UsuarioBaneado
             }
         } else {
             // No hay usuario autenticado, resetear todo
@@ -78,22 +82,47 @@ class AuthViewModel : ViewModel() {
     }
 
     /**
-     * Verificar si el usuario actual es administrador
+     * Verificar si el usuario actual es administrador y si está baneado
+     * @return true si el usuario puede continuar, false si está baneado
      */
-    private suspend fun verificarRolUsuario() {
+    private suspend fun verificarRolUsuario(): Boolean {
         try {
-            val uid = auth.currentUser?.uid ?: return
+            val uid = auth.currentUser?.uid ?: return false
+
+            // Obtener documento directamente para verificar baneo
+            val docSnapshot = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("usuarios")
+                .document(uid)
+                .get()
+                .await()
+
+            // Verificar si el usuario está baneado
+            val estaBaneado = docSnapshot.getBoolean("estaBaneado") ?: false
+            if (estaBaneado) {
+                // Cerrar sesión inmediatamente
+                auth.signOut()
+                googleSignInClient?.signOut()
+                _currentUser.value = null
+                _esAdmin.value = false
+                _usuarioFirestore.value = null
+                _authState.value = AuthState.UsuarioBaneado
+                return false
+            }
+
+            // Obtener perfil completo
             val result = firestoreRepository.obtenerPerfilUsuario(uid)
-            
             if (result.isSuccess) {
                 val usuario = result.getOrNull()
                 _usuarioFirestore.value = usuario
                 _esAdmin.value = usuario?.rol == "admin" || usuario?.email == ADMIN_EMAIL
+                return true
             } else {
                 _esAdmin.value = false
+                return true
             }
         } catch (e: Exception) {
             _esAdmin.value = false
+            return true
         }
     }
 
@@ -157,11 +186,15 @@ class AuthViewModel : ViewModel() {
                 
                 _currentUser.value = result.user
                 
-                // Verificar rol del usuario y esperar a que termine
-                verificarRolUsuario()
-                
-                // Emitir el estado de éxito después de verificar el rol
-                _authState.value = AuthState.Success(result.user)
+                // Verificar rol del usuario y si está baneado
+                val puedeAcceder = verificarRolUsuario()
+
+                // Solo emitir éxito si el usuario no está baneado
+                if (puedeAcceder) {
+                    _authState.value = AuthState.Success(result.user)
+                }
+                // Si está baneado, verificarRolUsuario ya estableció AuthState.UsuarioBaneado
+
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(manejarErrorAuth(e))
             }
@@ -196,10 +229,14 @@ class AuthViewModel : ViewModel() {
                             idToken = idToken
                         )
                     } else {
-                        // Usuario existente, verificar rol y continuar
+                        // Usuario existente, verificar rol y si está baneado
                         _currentUser.value = result.user
-                        verificarRolUsuario()
-                        _authState.value = AuthState.Success(result.user)
+                        val puedeAcceder = verificarRolUsuario()
+
+                        if (puedeAcceder) {
+                            _authState.value = AuthState.Success(result.user)
+                        }
+                        // Si está baneado, verificarRolUsuario ya estableció AuthState.UsuarioBaneado
                     }
                 }
             } catch (e: Exception) {

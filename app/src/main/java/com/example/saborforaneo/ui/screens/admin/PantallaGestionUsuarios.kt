@@ -1,67 +1,224 @@
 package com.example.saborforaneo.ui.screens.admin
 
-import android.app.Application
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.saborforaneo.data.model.RecetaComunidad
 import com.example.saborforaneo.ui.components.BarraNavegacionInferiorAdmin
-import com.example.saborforaneo.viewmodel.GestionComunidadViewModel
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
+
+// Modelo de datos para Usuario en gestión
+data class UsuarioAdmin(
+    val uid: String = "",
+    val nombre: String = "",
+    val email: String = "",
+    val fotoPerfil: String = "",
+    val fechaRegistro: Long = 0L,
+    val esAdmin: Boolean = false,
+    val estaBaneado: Boolean = false,
+    val ultimoAcceso: Long = 0L,
+    val recetasComunidad: Int = 0
+)
+
+data class EstadoGestionUsuarios(
+    val usuarios: List<UsuarioAdmin> = emptyList(),
+    val cargando: Boolean = false,
+    val error: String? = null,
+    val totalUsuarios: Int = 0,
+    val totalBaneados: Int = 0,
+    val usuariosActivos: Int = 0
+)
+
+class GestionUsuariosViewModel : ViewModel() {
+    private val firestore = FirebaseFirestore.getInstance()
+
+    private val _estado = MutableStateFlow(EstadoGestionUsuarios())
+    val estado: StateFlow<EstadoGestionUsuarios> = _estado.asStateFlow()
+
+    init {
+        cargarUsuarios()
+    }
+
+    fun cargarUsuarios() {
+        viewModelScope.launch {
+            _estado.value = _estado.value.copy(cargando = true, error = null)
+
+            try {
+                val snapshot = firestore.collection("usuarios").get().await()
+
+                // Contar recetas por usuario en comunidad
+                val recetasComunidad = firestore.collection("recetas_comunidad").get().await()
+                val recetasPorUsuario = recetasComunidad.documents
+                    .groupBy { it.getString("autorUid") ?: "" }
+                    .mapValues { it.value.size }
+
+                val usuarios = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        val esAdmin = doc.getBoolean("esAdmin") ?: (doc.getString("rol") == "admin")
+
+                        // Excluir admins de la lista
+                        if (esAdmin) return@mapNotNull null
+
+                        val uid = doc.id
+
+                        // Obtener fechaRegistro de diferentes campos posibles
+                        val fechaRegistro = doc.getLong("fechaRegistro")
+                            ?: doc.getLong("fechaCreacion")
+                            ?: doc.getTimestamp("createdAt")?.toDate()?.time
+                            ?: 0L
+
+                        // Obtener ultimo acceso
+                        val ultimoAcceso = doc.getLong("ultimoAcceso")
+                            ?: doc.getLong("lastLogin")
+                            ?: doc.getTimestamp("lastLoginAt")?.toDate()?.time
+                            ?: 0L
+
+                        UsuarioAdmin(
+                            uid = uid,
+                            nombre = doc.getString("nombre") ?: "Sin nombre",
+                            email = doc.getString("email") ?: "",
+                            fotoPerfil = doc.getString("fotoPerfil") ?: "",
+                            fechaRegistro = fechaRegistro,
+                            esAdmin = false,
+                            estaBaneado = doc.getBoolean("estaBaneado") ?: false,
+                            ultimoAcceso = ultimoAcceso,
+                            recetasComunidad = recetasPorUsuario[uid] ?: 0
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.sortedByDescending { it.fechaRegistro }
+
+                _estado.value = _estado.value.copy(
+                    usuarios = usuarios,
+                    cargando = false,
+                    totalUsuarios = usuarios.size,
+                    totalBaneados = usuarios.count { it.estaBaneado },
+                    usuariosActivos = usuarios.count { !it.estaBaneado }
+                )
+
+            } catch (e: Exception) {
+                _estado.value = _estado.value.copy(
+                    cargando = false,
+                    error = "Error al cargar usuarios: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun banearUsuario(uid: String, banear: Boolean) {
+        viewModelScope.launch {
+            try {
+                firestore.collection("usuarios").document(uid)
+                    .update(mapOf(
+                        "estaBaneado" to banear,
+                        "fechaBaneo" to if (banear) System.currentTimeMillis() else null
+                    ))
+                    .await()
+
+                // Actualizar lista local
+                _estado.value = _estado.value.copy(
+                    usuarios = _estado.value.usuarios.map {
+                        if (it.uid == uid) it.copy(estaBaneado = banear) else it
+                    },
+                    totalBaneados = if (banear) _estado.value.totalBaneados + 1 else _estado.value.totalBaneados - 1,
+                    usuariosActivos = if (banear) _estado.value.usuariosActivos - 1 else _estado.value.usuariosActivos + 1
+                )
+            } catch (e: Exception) {
+                _estado.value = _estado.value.copy(
+                    error = "Error al ${if (banear) "banear" else "desbanear"} usuario: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun eliminarUsuario(uid: String) {
+        viewModelScope.launch {
+            try {
+                // Eliminar documento del usuario
+                firestore.collection("usuarios").document(uid).delete().await()
+
+                // Actualizar lista local
+                val usuarioEliminado = _estado.value.usuarios.find { it.uid == uid }
+                _estado.value = _estado.value.copy(
+                    usuarios = _estado.value.usuarios.filter { it.uid != uid },
+                    totalUsuarios = _estado.value.totalUsuarios - 1,
+                    totalBaneados = if (usuarioEliminado?.estaBaneado == true) _estado.value.totalBaneados - 1 else _estado.value.totalBaneados,
+                    usuariosActivos = if (usuarioEliminado?.estaBaneado == false) _estado.value.usuariosActivos - 1 else _estado.value.usuariosActivos
+                )
+            } catch (e: Exception) {
+                _estado.value = _estado.value.copy(
+                    error = "Error al eliminar usuario: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun limpiarError() {
+        _estado.value = _estado.value.copy(error = null)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaGestionUsuarios(
     controladorNav: NavController
 ) {
-    val context = LocalContext.current
-    val viewModel: GestionComunidadViewModel = viewModel {
-        GestionComunidadViewModel(context.applicationContext as Application)
-    }
-    val recetas by viewModel.recetas.collectAsState()
-    val estadisticas by viewModel.estadisticas.collectAsState()
-    
+    val viewModel: GestionUsuariosViewModel = viewModel()
+    val estado by viewModel.estado.collectAsState()
+
     var busqueda by remember { mutableStateOf("") }
-    var filtroEstado by remember { mutableStateOf("todas") } // todas, publicadas, pendientes, rechazadas
+    var filtro by remember { mutableStateOf("todos") } // todos, baneados, activos
     var mostrarEstadisticas by remember { mutableStateOf(false) }
 
-    // Cargar recetas al entrar
-    LaunchedEffect(Unit) {
-        viewModel.cargarRecetasComunidad()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Mostrar error
+    LaunchedEffect(estado.error) {
+        estado.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.limpiarError()
+        }
     }
 
-    val recetasFiltradas = remember(recetas.recetas, busqueda, filtroEstado) {
-        recetas.recetas
+    val usuariosFiltrados = remember(estado.usuarios, busqueda, filtro) {
+        estado.usuarios
             .filter {
                 if (busqueda.isEmpty()) true
                 else it.nombre.contains(busqueda, ignoreCase = true) ||
-                     it.nombreAutor.contains(busqueda, ignoreCase = true)
+                     it.email.contains(busqueda, ignoreCase = true)
             }
             .filter {
-                when (filtroEstado) {
-                    "publicadas" -> it.publicada
-                    "pendientes" -> !it.publicada && !it.rechazada
-                    "rechazadas" -> it.rechazada
+                when (filtro) {
+                    "baneados" -> it.estaBaneado
+                    "activos" -> !it.estaBaneado
                     else -> true
                 }
             }
@@ -70,14 +227,22 @@ fun PantallaGestionUsuarios(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                navigationIcon = {
+                    IconButton(onClick = { controladorNav.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                },
+                title = {
                     Column {
                         Text(
-                            "Gestión de Comunidad",
+                            "Gestión de Usuarios",
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${recetas.recetas.size} recetas • ${estadisticas.totalPublicadas} publicadas",
+                            text = "${estado.totalUsuarios} usuarios registrados",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -87,10 +252,10 @@ fun PantallaGestionUsuarios(
                     IconButton(onClick = { mostrarEstadisticas = !mostrarEstadisticas }) {
                         Icon(
                             imageVector = if (mostrarEstadisticas) Icons.Default.Close else Icons.Default.BarChart,
-                            contentDescription = if (mostrarEstadisticas) "Ocultar estadísticas" else "Ver estadísticas"
+                            contentDescription = "Estadísticas"
                         )
                     }
-                    IconButton(onClick = { viewModel.cargarRecetasComunidad() }) {
+                    IconButton(onClick = { viewModel.cargarUsuarios() }) {
                         Icon(Icons.Default.Refresh, "Actualizar")
                     }
                 },
@@ -101,14 +266,15 @@ fun PantallaGestionUsuarios(
         },
         bottomBar = {
             BarraNavegacionInferiorAdmin(controladorNav = controladorNav)
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Estadísticas (si están visibles)
+            // Estadísticas
             AnimatedVisibility(
                 visible = mostrarEstadisticas,
                 enter = expandVertically() + fadeIn(),
@@ -124,33 +290,24 @@ fun PantallaGestionUsuarios(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "📊 Estadísticas de Comunidad",
+                            "📊 Estadísticas de Usuarios",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            EstadisticaCard("✅ Publicadas", estadisticas.totalPublicadas)
-                            EstadisticaCard("⏳ Pendientes", estadisticas.totalPendientes)
-                            EstadisticaCard("❌ Rechazadas", estadisticas.totalRechazadas)
-                        }
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            EstadisticaCard("❤️ Favoritos", estadisticas.totalFavoritos)
-                            EstadisticaCard("👥 Autores", estadisticas.autoresActivos)
-                            EstadisticaCard("📅 Hoy", estadisticas.recetasHoy)
+                            EstadisticaUsuarioCard("👥 Total", estado.totalUsuarios)
+                            EstadisticaUsuarioCard("🚫 Baneados", estado.totalBaneados)
+                            EstadisticaUsuarioCard("✅ Activos", estado.usuariosActivos)
                         }
                     }
                 }
             }
 
-            // Barra de búsqueda y filtros
+            // Búsqueda y filtros
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -160,10 +317,8 @@ fun PantallaGestionUsuarios(
                 OutlinedTextField(
                     value = busqueda,
                     onValueChange = { busqueda = it },
-                    placeholder = { Text("Buscar por nombre o autor...") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, "Buscar")
-                    },
+                    placeholder = { Text("Buscar por nombre o email...") },
+                    leadingIcon = { Icon(Icons.Default.Search, "Buscar") },
                     trailingIcon = {
                         if (busqueda.isNotEmpty()) {
                             IconButton(onClick = { busqueda = "" }) {
@@ -175,68 +330,41 @@ fun PantallaGestionUsuarios(
                     singleLine = true
                 )
 
-                // Filtros por estado
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = filtroEstado == "todas",
-                        onClick = { filtroEstado = "todas" },
-                        label = { Text("Todas", fontWeight = if (filtroEstado == "todas") FontWeight.Bold else FontWeight.Normal) },
-                        leadingIcon = if (filtroEstado == "todas") {
+                        selected = filtro == "todos",
+                        onClick = { filtro = "todos" },
+                        label = { Text("Todos") },
+                        leadingIcon = if (filtro == "todos") {
                             { Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
                         } else null
                     )
                     FilterChip(
-                        selected = filtroEstado == "publicadas",
-                        onClick = { filtroEstado = "publicadas" },
-                        label = { Text("Publicadas", fontWeight = if (filtroEstado == "publicadas") FontWeight.Bold else FontWeight.Normal) },
+                        selected = filtro == "baneados",
+                        onClick = { filtro = "baneados" },
+                        label = { Text("Baneados") },
                         leadingIcon = {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                null,
-                                modifier = Modifier.size(18.dp),
-                                tint = if (filtroEstado == "publicadas") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Icon(Icons.Default.Block, null, modifier = Modifier.size(18.dp),
+                                tint = if (filtro == "baneados") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     )
                     FilterChip(
-                        selected = filtroEstado == "pendientes",
-                        onClick = { filtroEstado = "pendientes" },
-                        label = { Text("Pendientes", fontWeight = if (filtroEstado == "pendientes") FontWeight.Bold else FontWeight.Normal) },
+                        selected = filtro == "activos",
+                        onClick = { filtro = "activos" },
+                        label = { Text("Activos") },
                         leadingIcon = {
-                            Icon(
-                                Icons.Default.Schedule,
-                                null,
-                                modifier = Modifier.size(18.dp),
-                                tint = if (filtroEstado == "pendientes") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
-                }
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = filtroEstado == "rechazadas",
-                        onClick = { filtroEstado = "rechazadas" },
-                        label = { Text("Rechazadas", fontWeight = if (filtroEstado == "rechazadas") FontWeight.Bold else FontWeight.Normal) },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Cancel,
-                                null,
-                                modifier = Modifier.size(18.dp),
-                                tint = if (filtroEstado == "rechazadas") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(18.dp))
                         }
                     )
                 }
             }
+
+            // Lista de usuarios
             when {
-                recetas.cargando -> {
+                estado.cargando -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -244,41 +372,15 @@ fun PantallaGestionUsuarios(
                         CircularProgressIndicator()
                     }
                 }
-                recetas.error != null -> {
+                usuariosFiltrados.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("👥", fontSize = 64.sp)
                             Text(
-                                text = "Error al cargar recetas",
-                                color = MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = recetas.error ?: "",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.cargarRecetasComunidad() }) {
-                                Text("Reintentar")
-                            }
-                        }
-                    }
-                }
-                recetasFiltradas.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "🍽️",
-                                fontSize = 64.sp
-                            )
-                            Text(
-                                text = if (busqueda.isEmpty()) "No hay recetas" else "No se encontraron recetas",
+                                text = if (busqueda.isEmpty()) "No hay usuarios" else "No se encontraron usuarios",
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -290,15 +392,13 @@ fun PantallaGestionUsuarios(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(
-                            items = recetasFiltradas,
-                            key = { it.id }
-                        ) { receta ->
-                            TarjetaRecetaComunidad(
-                                receta = receta,
-                                onPublicar = { viewModel.publicarReceta(it) },
-                                onRechazar = { viewModel.rechazarReceta(it) },
-                                onEliminar = { viewModel.eliminarReceta(it) },
-                                onRestaurar = { viewModel.restaurarReceta(it) }
+                            items = usuariosFiltrados,
+                            key = { it.uid }
+                        ) { usuario ->
+                            TarjetaUsuario(
+                                usuario = usuario,
+                                onBanear = { viewModel.banearUsuario(usuario.uid, !usuario.estaBaneado) },
+                                onEliminar = { viewModel.eliminarUsuario(usuario.uid) }
                             )
                         }
                     }
@@ -309,27 +409,22 @@ fun PantallaGestionUsuarios(
 }
 
 @Composable
-fun EstadisticaCard(
-    titulo: String,
-    valor: Int
-) {
-    Card(
-        modifier = Modifier.width(110.dp)
-    ) {
+fun EstadisticaUsuarioCard(titulo: String, valor: Int) {
+    Card(modifier = Modifier.width(80.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = titulo,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = valor.toString(),
-                fontSize = 24.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -338,398 +433,269 @@ fun EstadisticaCard(
 }
 
 @Composable
-fun TarjetaRecetaComunidad(
-    receta: RecetaComunidad,
-    onPublicar: (String) -> Unit,
-    onRechazar: (String) -> Unit,
-    onEliminar: (String) -> Unit,
-    onRestaurar: (String) -> Unit
+fun TarjetaUsuario(
+    usuario: UsuarioAdmin,
+    onBanear: () -> Unit,
+    onEliminar: () -> Unit
 ) {
-    var mostrarDialogo by remember { mutableStateOf(false) }
-    var accionSeleccionada by remember { mutableStateOf<String?>(null) }
-    
-    val fechaFormato = remember(receta.fechaCreacion) {
-        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-            .format(Date(receta.fechaCreacion))
+    var mostrarDialogoBanear by remember { mutableStateOf(false) }
+    var mostrarDialogoEliminar by remember { mutableStateOf(false) }
+
+    val fechaRegistro = remember(usuario.fechaRegistro) {
+        if (usuario.fechaRegistro > 0) {
+            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(usuario.fechaRegistro))
+        } else "Sin datos"
+    }
+
+    val ultimoAcceso = remember(usuario.ultimoAcceso) {
+        if (usuario.ultimoAcceso > 0) {
+            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(usuario.ultimoAcceso))
+        } else "Sin datos"
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (usuario.estaBaneado)
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Imagen de la receta
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
+            // Header con foto y nombre
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = receta.imagenUrl,
-                    contentDescription = receta.nombre,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                
-                // Badge de estado
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    shape = MaterialTheme.shapes.small,
-                    color = when {
-                        receta.publicada -> MaterialTheme.colorScheme.tertiary
-                        receta.rechazada -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.secondary
-                    }
-                ) {
-                    Text(
-                        text = when {
-                            receta.publicada -> "✅ PUBLICADA"
-                            receta.rechazada -> "❌ RECHAZADA"
-                            else -> "⏳ PENDIENTE"
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-                
-                // Contador de favoritos
-                if (receta.totalFavoritos > 0) {
-                    Surface(
+                // Foto de perfil
+                if (usuario.fotoPerfil.isNotEmpty()) {
+                    AsyncImage(
+                        model = usuario.fotoPerfil,
+                        contentDescription = "Foto de ${usuario.nombre}",
                         modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(8.dp),
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                            .size(56.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.size(56.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = receta.totalFavoritos.toString(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                text = usuario.nombre.firstOrNull()?.uppercase() ?: "?",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = usuario.nombre,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (usuario.estaBaneado) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.error
+                            ) {
+                                Text(
+                                    text = "BANEADO",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onError,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = usuario.email,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
-            // Información de la receta
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            HorizontalDivider()
+
+            // Información del usuario
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = receta.nombre,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Text(
-                    text = receta.descripcion,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Divider()
-                
-                // Info del autor y fecha
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Column {
-                            Text(
-                                text = receta.nombreAutor,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = fechaFormato,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    
-                    IconButton(onClick = { mostrarDialogo = true }) {
-                        Icon(Icons.Default.MoreVert, "Opciones")
-                    }
+                Column {
+                    Text(
+                        text = "📅 Registro",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = fechaRegistro,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-                
-                // Información adicional
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    InfoChip(Icons.Default.Timer, "${receta.tiempoPreparacion} min")
-                    InfoChip(Icons.Default.Restaurant, "${receta.porciones} porciones")
-                    InfoChip(Icons.Default.Category, receta.categoria)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "📝 Recetas",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = usuario.recetasComunidad.toString(),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
-                
-                // Botones de acción rápida
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "🕐 Último acceso",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = ultimoAcceso,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Acciones rápidas
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { mostrarDialogoBanear = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (usuario.estaBaneado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    when {
-                        !receta.publicada && !receta.rechazada -> {
-                            // Receta pendiente - mostrar publicar y rechazar
-                            Button(
-                                onClick = { 
-                                    accionSeleccionada = "publicar"
-                                    mostrarDialogo = true
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiary
-                                )
-                            ) {
-                                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Publicar")
-                            }
-                            
-                            OutlinedButton(
-                                onClick = {
-                                    accionSeleccionada = "rechazar"
-                                    mostrarDialogo = true
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Icon(Icons.Default.Cancel, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Rechazar")
-                            }
-                        }
-                        receta.rechazada -> {
-                            // Receta rechazada - mostrar restaurar y eliminar
-                            Button(
-                                onClick = {
-                                    accionSeleccionada = "restaurar"
-                                    mostrarDialogo = true
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.RestartAlt, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Restaurar")
-                            }
-                            
-                            OutlinedButton(
-                                onClick = {
-                                    accionSeleccionada = "eliminar"
-                                    mostrarDialogo = true
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Eliminar")
-                            }
-                        }
-                        receta.publicada -> {
-                            // Receta publicada - mostrar solo eliminar
-                            OutlinedButton(
-                                onClick = {
-                                    accionSeleccionada = "eliminar"
-                                    mostrarDialogo = true
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Eliminar Receta")
-                            }
-                        }
-                    }
+                    Icon(
+                        if (usuario.estaBaneado) Icons.Default.CheckCircle else Icons.Default.Block,
+                        null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(if (usuario.estaBaneado) "Desbanear" else "Banear")
+                }
+
+                OutlinedButton(
+                    onClick = { mostrarDialogoEliminar = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Eliminar")
                 }
             }
         }
     }
 
-    // Diálogo de confirmación
-    if (mostrarDialogo && accionSeleccionada != null) {
+    // Diálogo de banear/desbanear
+    if (mostrarDialogoBanear) {
         AlertDialog(
-            onDismissRequest = { 
-                mostrarDialogo = false
-                accionSeleccionada = null
-            },
+            onDismissRequest = { mostrarDialogoBanear = false },
             icon = {
                 Icon(
-                    imageVector = when (accionSeleccionada) {
-                        "publicar" -> Icons.Default.CheckCircle
-                        "rechazar" -> Icons.Default.Close
-                        "eliminar" -> Icons.Default.Delete
-                        "restaurar" -> Icons.Default.RestartAlt
-                        else -> Icons.Default.Info
-                    },
+                    imageVector = if (usuario.estaBaneado) Icons.Default.CheckCircle else Icons.Default.Block,
                     contentDescription = null,
-                    tint = when (accionSeleccionada) {
-                        "eliminar", "rechazar" -> MaterialTheme.colorScheme.error
-                        "publicar" -> MaterialTheme.colorScheme.tertiary
-                        else -> MaterialTheme.colorScheme.primary
-                    }
+                    tint = if (usuario.estaBaneado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 )
             },
             title = {
-                Text(
-                    text = when (accionSeleccionada) {
-                        "publicar" -> "¿Publicar receta?"
-                        "rechazar" -> "¿Rechazar receta?"
-                        "eliminar" -> "¿Eliminar receta?"
-                        "restaurar" -> "¿Restaurar receta?"
-                        else -> "Confirmar acción"
-                    }
-                )
+                Text(if (usuario.estaBaneado) "¿Desbanear usuario?" else "¿Banear usuario?")
             },
             text = {
                 Text(
-                    text = when (accionSeleccionada) {
-                        "publicar" -> "La receta \"${receta.nombre}\" será visible para todos los usuarios en la comunidad."
-                        "rechazar" -> "La receta \"${receta.nombre}\" será marcada como rechazada y no será visible en la comunidad."
-                        "eliminar" -> "Esta acción eliminará permanentemente la receta \"${receta.nombre}\". No se puede deshacer."
-                        "restaurar" -> "La receta \"${receta.nombre}\" volverá al estado pendiente de revisión."
-                        else -> ""
-                    }
+                    if (usuario.estaBaneado)
+                        "El usuario \"${usuario.nombre}\" podrá volver a acceder a la aplicación."
+                    else
+                        "El usuario \"${usuario.nombre}\" no podrá acceder a la aplicación hasta que sea desbaneado."
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        when (accionSeleccionada) {
-                            "publicar" -> onPublicar(receta.id)
-                            "rechazar" -> onRechazar(receta.id)
-                            "eliminar" -> onEliminar(receta.id)
-                            "restaurar" -> onRestaurar(receta.id)
-                        }
-                        mostrarDialogo = false
-                        accionSeleccionada = null
+                        onBanear()
+                        mostrarDialogoBanear = false
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = when (accionSeleccionada) {
-                            "eliminar", "rechazar" -> MaterialTheme.colorScheme.error
-                            "publicar" -> MaterialTheme.colorScheme.tertiary
-                            else -> MaterialTheme.colorScheme.primary
-                        }
+                        containerColor = if (usuario.estaBaneado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text(
-                        when (accionSeleccionada) {
-                            "publicar" -> "Sí, publicar"
-                            "rechazar" -> "Sí, rechazar"
-                            "eliminar" -> "Sí, eliminar"
-                            "restaurar" -> "Sí, restaurar"
-                            else -> "Confirmar"
-                        }
-                    )
+                    Text(if (usuario.estaBaneado) "Desbanear" else "Banear")
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        mostrarDialogo = false
-                        accionSeleccionada = null
-                    }
-                ) {
+                TextButton(onClick = { mostrarDialogoBanear = false }) {
                     Text("Cancelar")
                 }
             }
         )
-    } else if (mostrarDialogo) {
-        // Diálogo de detalles
+    }
+
+    // Diálogo de eliminar
+    if (mostrarDialogoEliminar) {
         AlertDialog(
-            onDismissRequest = { mostrarDialogo = false },
-            title = { Text("Detalles de la Receta") },
+            onDismissRequest = { mostrarDialogoEliminar = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("¿Eliminar usuario?") },
             text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("📝 ${receta.nombre}", fontWeight = FontWeight.Bold)
-                    Text("👤 Autor: ${receta.nombreAutor}")
-                    Text("🆔 ID: ${receta.id.take(20)}...")
-                    Text("📅 Creada: $fechaFormato")
-                    Text("❤️ Favoritos: ${receta.totalFavoritos}")
-                    Text("🍽️ Categoría: ${receta.categoria}")
-                    Text("⏱️ Tiempo: ${receta.tiempoPreparacion} min")
-                    Text("👥 Porciones: ${receta.porciones}")
-                    Text("📊 Dificultad: ${receta.dificultad}")
-                }
+                Text("Esta acción eliminará permanentemente al usuario \"${usuario.nombre}\" y todos sus datos. No se puede deshacer.")
             },
             confirmButton = {
-                TextButton(onClick = { mostrarDialogo = false }) {
-                    Text("Cerrar")
+                Button(
+                    onClick = {
+                        onEliminar()
+                        mostrarDialogoEliminar = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoEliminar = false }) {
+                    Text("Cancelar")
                 }
             }
         )
-    }
-}
-
-@Composable
-fun InfoChip(
-    icono: ImageVector,
-    texto: String
-) {
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = texto,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }

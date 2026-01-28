@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.data.model.EstadoModeracion
 import com.example.saborforaneo.data.model.Receta
 import com.example.saborforaneo.ui.components.BarraNavegacionInferiorAdmin
@@ -48,6 +51,14 @@ fun PantallaModeracion(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = { controladorNav.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                },
                 title = {
                     Column {
                         Text(
@@ -239,8 +250,14 @@ fun TarjetaRecetaPendiente(
         Column(modifier = Modifier.fillMaxWidth()) {
             // Imagen
             if (receta.imagenUrl.isNotEmpty()) {
+                val context = androidx.compose.ui.platform.LocalContext.current
                 AsyncImage(
-                    model = receta.imagenUrl,
+                    model = ImageRequest.Builder(context)
+                        .data(receta.imagenUrl)
+                        .crossfade(true)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .build(),
                     contentDescription = receta.nombre,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -285,7 +302,7 @@ fun TarjetaRecetaPendiente(
                     
                     AssistChip(
                         onClick = { },
-                        label = { Text("Pendiente") },
+                        label = { Text("Espera") },
                         leadingIcon = {
                             Icon(
                                 Icons.Default.Schedule,

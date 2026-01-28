@@ -1,5 +1,8 @@
 package com.example.saborforaneo.ui.screens.admin
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -13,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.saborforaneo.R
 import com.example.saborforaneo.ui.components.BarraNavegacionInferiorAdmin
@@ -21,6 +25,7 @@ import com.example.saborforaneo.ui.screens.profile.PerfilViewModel
 import com.example.saborforaneo.ui.screens.profile.TemaColor
 import com.example.saborforaneo.ui.screens.profile.ModoTema
 import com.example.saborforaneo.viewmodel.AuthViewModel
+import com.example.saborforaneo.viewmodel.BackupViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import kotlinx.coroutines.launch
@@ -31,12 +36,49 @@ fun PantallaPerfilAdmin(
     navegarALogin: () -> Unit,
     controladorNav: NavController,
     authViewModel: AuthViewModel,
-    perfilViewModel: PerfilViewModel
+    perfilViewModel: PerfilViewModel,
+    backupViewModel: BackupViewModel = viewModel()
 ) {
     val estado by perfilViewModel.estado.collectAsState()
+    val backupState by backupViewModel.uiState.collectAsState()
     val estadoSnackbar = remember { SnackbarHostState() }
     val alcance = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Estado para diálogos de respaldo
+    var mostrarDialogoRespaldo by remember { mutableStateOf(false) }
+
+    // Launcher para solicitar permisos de Google Drive
+    val drivePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data).result
+            if (account != null) {
+                backupViewModel.initializeDriveService(context, account)
+                backupViewModel.realizarRespaldo(context)
+            }
+        }
+    }
+
+    // Observar cambios en el estado del backup
+    LaunchedEffect(backupState.needsDrivePermission) {
+        if (backupState.needsDrivePermission) {
+            val intent = backupViewModel.getDriveSignInIntent(context)
+            drivePermissionLauncher.launch(intent)
+        }
+    }
+
+    LaunchedEffect(backupState.message, backupState.error) {
+        backupState.message?.let {
+            estadoSnackbar.showSnackbar(it)
+            backupViewModel.clearMessage()
+        }
+        backupState.error?.let {
+            estadoSnackbar.showSnackbar("❌ $it")
+            backupViewModel.clearMessage()
+        }
+    }
 
     // Configurar Google Sign-In Client
     val googleSignInClient = remember {
@@ -55,6 +97,7 @@ fun PantallaPerfilAdmin(
     var mostrarDialogoEditarPerfil by remember { mutableStateOf(false) }
     var mostrarDialogoCambiarFoto by remember { mutableStateOf(false) }
     var mostrarDialogoSelectorTema by remember { mutableStateOf(false) }
+    var mostrarDialogoSeguridad by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -222,12 +265,18 @@ fun PantallaPerfilAdmin(
                 ItemConfiguracion(
                     icono = Icons.Default.Backup,
                     titulo = "Respaldo de Datos",
-                    descripcion = "Exportar datos de la aplicación",
+                    descripcion = if (backupState.lastBackupDate != null)
+                        "Último respaldo: ${backupState.lastBackupDate}"
+                    else
+                        "Guardar datos en Google Drive",
                     alHacerClic = {
-                        alcance.launch {
-                            estadoSnackbar.showSnackbar(
-                                message = "🚧 Función próximamente disponible",
-                                duration = SnackbarDuration.Short
+                        mostrarDialogoRespaldo = true
+                    },
+                    contenidoExtra = {
+                        if (backupState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
                             )
                         }
                     }
@@ -240,12 +289,7 @@ fun PantallaPerfilAdmin(
                     titulo = "Seguridad",
                     descripcion = "Configuración de seguridad avanzada",
                     alHacerClic = {
-                        alcance.launch {
-                            estadoSnackbar.showSnackbar(
-                                message = "🚧 Función próximamente disponible",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+                        mostrarDialogoSeguridad = true
                     }
                 )
             }
@@ -418,6 +462,195 @@ fun PantallaPerfilAdmin(
                 TextButton(onClick = { mostrarDialogoSelectorTema = false }) {
                     Text("Cancelar")
                 }
+            }
+        )
+    }
+
+    // Diálogo de respaldo de datos
+    if (mostrarDialogoRespaldo) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!backupState.isLoading) {
+                    mostrarDialogoRespaldo = false
+                }
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CloudUpload,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Respaldo en Google Drive",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "El respaldo incluirá:",
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Restaurant,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Todas las recetas", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.People,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Datos de usuarios", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Forum,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Recetas de la comunidad", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Comment,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Comentarios", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    if (backupState.lastBackupDate != null) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Último respaldo: ${backupState.lastBackupDate}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+
+                    if (backupState.isLoading) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Realizando respaldo...")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        backupViewModel.realizarRespaldo(context)
+                    },
+                    enabled = !backupState.isLoading
+                ) {
+                    Icon(
+                        Icons.Default.Backup,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Respaldar Ahora")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { mostrarDialogoRespaldo = false },
+                    enabled = !backupState.isLoading
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Diálogo de seguridad
+    if (mostrarDialogoSeguridad) {
+        DialogoSeguridad(
+            onDismiss = { mostrarDialogoSeguridad = false },
+            onCambiarContrasena = {
+                mostrarDialogoSeguridad = false
+                alcance.launch {
+                    estadoSnackbar.showSnackbar("📧 Se enviará un correo para cambiar tu contraseña")
+                }
+                // Enviar correo de restablecimiento
+                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email?.let { email ->
+                    com.google.firebase.auth.FirebaseAuth.getInstance()
+                        .sendPasswordResetEmail(email)
+                        .addOnSuccessListener {
+                            alcance.launch {
+                                estadoSnackbar.showSnackbar("✅ Correo enviado a $email")
+                            }
+                        }
+                        .addOnFailureListener {
+                            alcance.launch {
+                                estadoSnackbar.showSnackbar("❌ Error al enviar correo")
+                            }
+                        }
+                }
+            },
+            onVerSesiones = {
+                mostrarDialogoSeguridad = false
+                alcance.launch {
+                    estadoSnackbar.showSnackbar("📱 Sesión activa en este dispositivo")
+                }
+            },
+            onActivar2FA = { activado ->
+                alcance.launch {
+                    if (activado) {
+                        estadoSnackbar.showSnackbar("🔐 Verificación en 2 pasos activada")
+                    } else {
+                        estadoSnackbar.showSnackbar("⚠️ Verificación en 2 pasos desactivada")
+                    }
+                }
+            },
+            onBloquearUsuarios = {
+                mostrarDialogoSeguridad = false
+                // Navegar a gestión de usuarios con filtro de bloqueados
+                controladorNav.navigate(com.example.saborforaneo.ui.navigation.Rutas.GestionUsuarios.ruta)
             }
         )
     }

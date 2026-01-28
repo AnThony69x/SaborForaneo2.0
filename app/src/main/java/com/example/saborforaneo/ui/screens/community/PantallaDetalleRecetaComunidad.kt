@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.data.model.ComentarioReceta
 import com.example.saborforaneo.viewmodel.DetalleRecetaComunidadViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -176,7 +178,12 @@ fun PantallaDetalleRecetaComunidad(
                         ) {
                             if (receta.imagenUrl.isNotEmpty()) {
                                 AsyncImage(
-                                    model = receta.imagenUrl,
+                                    model = ImageRequest.Builder(contexto)
+                                        .data(receta.imagenUrl)
+                                        .crossfade(true)
+                                        .diskCachePolicy(CachePolicy.ENABLED)
+                                        .memoryCachePolicy(CachePolicy.ENABLED)
+                                        .build(),
                                     contentDescription = receta.nombre,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
@@ -197,7 +204,12 @@ fun PantallaDetalleRecetaComunidad(
                             ) {
                                 if (receta.autorFoto.isNotEmpty()) {
                                     AsyncImage(
-                                        model = receta.autorFoto,
+                                        model = ImageRequest.Builder(contexto)
+                                            .data(receta.autorFoto)
+                                            .crossfade(true)
+                                            .diskCachePolicy(CachePolicy.ENABLED)
+                                            .memoryCachePolicy(CachePolicy.ENABLED)
+                                            .build(),
                                         contentDescription = receta.autorNombre,
                                         modifier = Modifier
                                             .size(40.dp)
@@ -544,8 +556,14 @@ fun ComentarioItem(
                 ) {
                     // Foto del autor
                     if (comentario.autorFoto.isNotEmpty()) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
                         AsyncImage(
-                            model = comentario.autorFoto,
+                            model = ImageRequest.Builder(context)
+                                .data(comentario.autorFoto)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
                             contentDescription = comentario.autorNombre,
                             modifier = Modifier
                                 .size(36.dp)
@@ -806,8 +824,14 @@ fun RespuestaItem(
         ) {
             // Foto del autor
             if (respuesta.autorFoto.isNotEmpty()) {
+                val context = androidx.compose.ui.platform.LocalContext.current
                 AsyncImage(
-                    model = respuesta.autorFoto,
+                    model = ImageRequest.Builder(context)
+                        .data(respuesta.autorFoto)
+                        .crossfade(true)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .build(),
                     contentDescription = respuesta.autorNombre,
                     modifier = Modifier
                         .size(28.dp)

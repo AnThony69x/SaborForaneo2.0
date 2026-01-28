@@ -129,6 +129,8 @@ class GestionComunidadViewModel(application: Application) : AndroidViewModel(app
                         mapOf(
                             "publicada" to true,
                             "rechazada" to false,
+                            "moderada" to true,
+                            "activa" to true,
                             "fechaPublicacion" to System.currentTimeMillis()
                         )
                     )
@@ -154,7 +156,9 @@ class GestionComunidadViewModel(application: Application) : AndroidViewModel(app
                     .update(
                         mapOf(
                             "publicada" to false,
-                            "rechazada" to true
+                            "rechazada" to true,
+                            "moderada" to false,
+                            "activa" to false
                         )
                     )
                     .await()
@@ -193,7 +197,9 @@ class GestionComunidadViewModel(application: Application) : AndroidViewModel(app
                     .update(
                         mapOf(
                             "publicada" to false,
-                            "rechazada" to false
+                            "rechazada" to false,
+                            "moderada" to false,
+                            "activa" to true
                         )
                     )
                     .await()
@@ -203,6 +209,60 @@ class GestionComunidadViewModel(application: Application) : AndroidViewModel(app
             } catch (e: Exception) {
                 _recetas.value = _recetas.value.copy(
                     error = "Error al restaurar receta: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Función para arreglar recetas que ya fueron publicadas pero no tienen
+     * los campos moderada y activa correctos.
+     * También arregla recetas antiguas que no tenían estos campos.
+     */
+    fun arreglarRecetasPublicadas() {
+        viewModelScope.launch {
+            try {
+                // Obtener TODAS las recetas de la colección
+                val snapshot = recetasCollection.get().await()
+
+                var corregidas = 0
+                for (doc in snapshot.documents) {
+                    val publicada = doc.getBoolean("publicada") ?: false
+                    val rechazada = doc.getBoolean("rechazada") ?: false
+                    val moderada = doc.getBoolean("moderada")
+                    val activa = doc.getBoolean("activa")
+
+                    // Si la receta está publicada y no rechazada, asegurar que tenga moderada=true y activa=true
+                    if (publicada && !rechazada) {
+                        if (moderada != true || activa != true) {
+                            recetasCollection.document(doc.id)
+                                .update(
+                                    mapOf(
+                                        "moderada" to true,
+                                        "activa" to true
+                                    )
+                                )
+                                .await()
+                            corregidas++
+                        }
+                    }
+
+                    // Si la receta no está publicada ni rechazada (pendiente), asegurar que esté activa
+                    if (!publicada && !rechazada && activa != true) {
+                        recetasCollection.document(doc.id)
+                            .update(mapOf("activa" to true))
+                            .await()
+                        corregidas++
+                    }
+                }
+
+                if (corregidas > 0) {
+                    cargarRecetasComunidad()
+                }
+
+            } catch (e: Exception) {
+                _recetas.value = _recetas.value.copy(
+                    error = "Error al arreglar recetas: ${e.message}"
                 )
             }
         }

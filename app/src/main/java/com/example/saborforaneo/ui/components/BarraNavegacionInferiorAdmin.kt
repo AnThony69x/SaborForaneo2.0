@@ -1,9 +1,11 @@
 package com.example.saborforaneo.ui.components
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -28,9 +30,9 @@ sealed class ItemNavegacionAdmin(
     )
 
     object UsuariosAdmin : ItemNavegacionAdmin(
-        ruta = Rutas.GestionUsuarios.ruta,
+        ruta = Rutas.GestionComunidad.ruta,
         titulo = "Comunidad",
-        icono = Icons.Default.People
+        icono = Icons.Default.Forum
     )
 
     object RecetasAdmin : ItemNavegacionAdmin(
@@ -62,23 +64,26 @@ fun BarraNavegacionInferiorAdmin(
 
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp
+        tonalElevation = 8.dp
     ) {
         items.forEach { item ->
+            val isSelected = rutaActual == item.ruta
             NavigationBarItem(
                 icon = {
                     Icon(
                         imageVector = item.icono,
-                        contentDescription = item.titulo
+                        contentDescription = item.titulo,
+                        modifier = Modifier.size(if (isSelected) 28.dp else 24.dp)
                     )
                 },
-                label = { Text(text = item.titulo) },
-                selected = rutaActual == item.ruta,
+                label = null,
+                selected = isSelected,
                 onClick = {
                     if (rutaActual != item.ruta) {
                         controladorNav.navigate(item.ruta) {
-                            // Evitar múltiples copias de la misma pantalla
+                            // Limpiar el back stack hasta InicioAdmin para evitar acumulación
                             popUpTo(Rutas.InicioAdmin.ruta) {
+                                inclusive = false
                                 saveState = true
                             }
                             launchSingleTop = true

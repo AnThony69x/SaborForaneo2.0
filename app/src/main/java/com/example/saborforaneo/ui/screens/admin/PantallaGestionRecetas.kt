@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.data.model.Receta
 import com.example.saborforaneo.ui.components.BarraNavegacionInferiorAdmin
 import com.example.saborforaneo.viewmodel.RecetaAdminViewModel
@@ -56,7 +58,15 @@ fun PantallaGestionRecetas(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                navigationIcon = {
+                    IconButton(onClick = { controladorNav.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                },
+                title = {
                     Text(
                         "Gestión de Recetas",
                         fontWeight = FontWeight.Bold
@@ -251,8 +261,14 @@ private fun TarjetaRecetaAdmin(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Imagen
+            val context = androidx.compose.ui.platform.LocalContext.current
             AsyncImage(
-                model = receta.imagenUrl,
+                model = ImageRequest.Builder(context)
+                    .data(receta.imagenUrl)
+                    .crossfade(true)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .build(),
                 contentDescription = receta.nombre,
                 modifier = Modifier.size(80.dp)
             )

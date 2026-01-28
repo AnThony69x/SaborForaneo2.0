@@ -25,6 +25,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.util.Categorias
 import com.example.saborforaneo.util.ValidacionConstantes
 import com.example.saborforaneo.util.validarLongitudMax
@@ -313,8 +315,14 @@ fun PantallaCrearReceta(
                                     }
                                 } else {
                                     // Mostrar imagen
+                                    val context = androidx.compose.ui.platform.LocalContext.current
                                     AsyncImage(
-                                        model = imagenUrl,
+                                        model = ImageRequest.Builder(context)
+                                            .data(imagenUrl)
+                                            .crossfade(true)
+                                            .diskCachePolicy(CachePolicy.ENABLED)
+                                            .memoryCachePolicy(CachePolicy.ENABLED)
+                                            .build(),
                                         contentDescription = "Vista previa",
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop,
@@ -439,7 +447,7 @@ fun PantallaCrearReceta(
                                     tiempoPreparacion = it
                                 }
                             },
-                            label = { Text("Tiempo (min) *") },
+                            label = { Text("Min *") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             leadingIcon = { Icon(Icons.Default.Timer, null) },
@@ -459,7 +467,7 @@ fun PantallaCrearReceta(
                                     porciones = it
                                 }
                             },
-                            label = { Text("Porciones *") },
+                            label = { Text("Porc. *") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             leadingIcon = { Icon(Icons.Default.Restaurant, null) },

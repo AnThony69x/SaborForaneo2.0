@@ -16,7 +16,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 
 @Composable
 fun SeccionPerfil(
@@ -45,8 +48,14 @@ fun SeccionPerfil(
                 contentAlignment = Alignment.Center
             ) {
                 if (fotoPerfil.isNotEmpty()) {
+                    val context = LocalContext.current
                     AsyncImage(
-                        model = fotoPerfil,
+                        model = ImageRequest.Builder(context)
+                            .data(fotoPerfil)
+                            .crossfade(true)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build(),
                         contentDescription = "Foto de perfil",
                         modifier = Modifier
                             .fillMaxSize()

@@ -21,7 +21,8 @@ data class Usuario(
     val ubicacionActiva: Boolean = false,
     val temaOscuro: Boolean = false,
     val modoTema: String = "AUTOMATICO", // AUTOMATICO, CLARO, OSCURO
-    val temaColor: String = "VERDE" // VERDE, ROJO, AZUL, NARANJA, MORADO
+    val temaColor: String = "VERDE", // VERDE, ROJO, AZUL, NARANJA, MORADO
+    val estaBaneado: Boolean = false
 )
 
 class FirestoreRepository {

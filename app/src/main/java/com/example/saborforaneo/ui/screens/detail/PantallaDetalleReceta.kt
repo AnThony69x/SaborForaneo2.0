@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.viewmodel.DetalleRecetaViewModel
 import kotlinx.coroutines.delay
 
@@ -218,7 +220,12 @@ fun PantallaDetalleReceta(
                 ) {
                     if (receta.imagenUrl.startsWith("http")) {
                         AsyncImage(
-                            model = receta.imagenUrl,
+                            model = ImageRequest.Builder(contexto)
+                                .data(receta.imagenUrl)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
                             contentDescription = "Imagen de ${receta.nombre}",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop

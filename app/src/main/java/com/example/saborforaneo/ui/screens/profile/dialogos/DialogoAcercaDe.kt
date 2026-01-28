@@ -44,11 +44,17 @@ fun DialogoAcercaDe(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Desarrollado por: AnThony69x",
+                    text = "Desarrollado por:",
                     fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = "AnThony69x & EmilioSle",
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "© 2025 SaborForáneo",
                     fontSize = 12.sp,

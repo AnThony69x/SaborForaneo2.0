@@ -84,7 +84,8 @@ fun SeccionPreferencias(
 fun SeccionCuenta(
     descripcionRestricciones: String,
     alAbrirRestricciones: () -> Unit,
-    alCambiarContrasena: () -> Unit
+    alCambiarContrasena: () -> Unit,
+    alAbrirSeguridad: () -> Unit = {}
 ) {
     Text(
         text = "Cuenta",
@@ -105,6 +106,13 @@ fun SeccionCuenta(
         titulo = "Cambiar Contraseña",
         descripcion = "Actualiza tu contraseña",
         alHacerClic = alCambiarContrasena
+    )
+
+    ItemConfiguracion(
+        icono = Icons.Default.Security,
+        titulo = "Seguridad",
+        descripcion = "Verificación en 2 pasos y sesiones",
+        alHacerClic = alAbrirSeguridad
     )
 }
 

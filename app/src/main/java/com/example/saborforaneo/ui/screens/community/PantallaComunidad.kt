@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.example.saborforaneo.data.model.RecetaComunidad
 import com.example.saborforaneo.ui.components.BarraNavegacionInferior
 import com.example.saborforaneo.ui.components.DialogoRequiereAuth
@@ -334,8 +336,14 @@ fun TarjetaRecetaComunidad(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (receta.imagenUrl.isNotEmpty()) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
                     AsyncImage(
-                        model = receta.imagenUrl,
+                        model = ImageRequest.Builder(context)
+                            .data(receta.imagenUrl)
+                            .crossfade(true)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build(),
                         contentDescription = receta.nombre,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -400,8 +408,14 @@ fun TarjetaRecetaComunidad(
                     modifier = Modifier.padding(bottom = 12.dp)
                 ) {
                     if (receta.autorFoto.isNotEmpty()) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
                         AsyncImage(
-                            model = receta.autorFoto,
+                            model = ImageRequest.Builder(context)
+                                .data(receta.autorFoto)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
                             contentDescription = receta.autorNombre,
                             modifier = Modifier
                                 .size(40.dp)

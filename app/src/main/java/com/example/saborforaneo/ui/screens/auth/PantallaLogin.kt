@@ -126,6 +126,14 @@ fun PantallaLogin(
                 mostrarDialogoContrasena = true
                 authViewModel.resetAuthState()
             }
+            is AuthState.UsuarioBaneado -> {
+                mensajeError = "Tu cuenta ha sido suspendida. Contacta al administrador."
+                snackbarHostState.showSnackbar(
+                    message = "🚫 Tu cuenta ha sido suspendida",
+                    duration = SnackbarDuration.Long
+                )
+                authViewModel.resetAuthState()
+            }
             else -> {}
         }
     }
