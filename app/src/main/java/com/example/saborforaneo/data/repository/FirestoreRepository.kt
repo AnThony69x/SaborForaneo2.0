@@ -22,7 +22,11 @@ data class Usuario(
     val temaOscuro: Boolean = false,
     val modoTema: String = "AUTOMATICO", // AUTOMATICO, CLARO, OSCURO
     val temaColor: String = "VERDE", // VERDE, ROJO, AZUL, NARANJA, MORADO
-    val estaBaneado: Boolean = false
+    val estaBaneado: Boolean = false,
+    val tipoBaneo: String = "", // "temporal" o "permanente"
+    val motivoBaneo: String = "",
+    val fechaBaneo: Long = 0L,
+    val fechaFinBaneo: Long = 0L // Solo para baneos temporales
 )
 
 class FirestoreRepository {

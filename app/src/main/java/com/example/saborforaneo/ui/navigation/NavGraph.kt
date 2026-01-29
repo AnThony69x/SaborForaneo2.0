@@ -19,6 +19,7 @@ import com.example.saborforaneo.ui.screens.onboarding.PantallaOnboarding
 import com.example.saborforaneo.ui.screens.auth.PantallaLogin
 import com.example.saborforaneo.ui.screens.auth.PantallaRegistro
 import com.example.saborforaneo.ui.screens.auth.PantallaRecuperarContrasena
+import com.example.saborforaneo.ui.screens.auth.PantallaInfoDesbaneo
 import com.example.saborforaneo.ui.screens.home.PantallaInicio
 import com.example.saborforaneo.ui.screens.search.PantallaBusqueda
 import com.example.saborforaneo.ui.screens.detail.PantallaDetalleReceta
@@ -156,6 +157,9 @@ fun GrafoNavegacion(
                 navegarARecuperarContrasena = {
                     controladorNav.navigate(Rutas.RecuperarContrasena.ruta)
                 },
+                navegarAInfoDesbaneo = {
+                    controladorNav.navigate(Rutas.InfoDesbaneo.ruta)
+                },
                 authViewModel = authViewModel
             )
         }
@@ -193,6 +197,14 @@ fun GrafoNavegacion(
 
         composable(route = Rutas.TerminosCondiciones.ruta) {
             PantallaTerminosCondiciones(
+                navegarAtras = {
+                    controladorNav.popBackStack()
+                }
+            )
+        }
+
+        composable(route = Rutas.InfoDesbaneo.ruta) {
+            PantallaInfoDesbaneo(
                 navegarAtras = {
                     controladorNav.popBackStack()
                 }

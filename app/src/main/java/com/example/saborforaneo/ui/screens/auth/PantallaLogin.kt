@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,12 +49,17 @@ fun PantallaLogin(
     navegarAInicio: () -> Unit,
     navegarAAdmin: () -> Unit,
     navegarARecuperarContrasena: () -> Unit,
+    navegarAInfoDesbaneo: () -> Unit = {},
     authViewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var mensajeError by remember { mutableStateOf("") }
+    
+    // Estado para mostrar diálogo de baneo
+    var mostrarDialogoBaneo by remember { mutableStateOf(false) }
+    var infoBaneo by remember { mutableStateOf<Triple<String, String, Long>?>(null) } // tipo, motivo, fechaFin
 
     // Estados para el diálogo de contraseña de Google
     var mostrarDialogoContrasena by remember { mutableStateOf(false) }
@@ -127,7 +134,9 @@ fun PantallaLogin(
                 authViewModel.resetAuthState()
             }
             is AuthState.UsuarioBaneado -> {
-                mensajeError = "Tu cuenta ha sido suspendida. Contacta al administrador."
+                infoBaneo = Triple(state.tipoBaneo, state.motivoBaneo, state.fechaFinBaneo)
+                mostrarDialogoBaneo = true
+                mensajeError = "Tu cuenta ha sido suspendida"
                 snackbarHostState.showSnackbar(
                     message = "🚫 Tu cuenta ha sido suspendida",
                     duration = SnackbarDuration.Long
@@ -436,5 +445,140 @@ fun PantallaLogin(
             mostrarLoading = authState is AuthState.Loading
         )
     }
+    
+    // Mostrar diálogo de cuenta baneada con motivo
+    if (mostrarDialogoBaneo && infoBaneo != null) {
+        DialogoCuentaSuspendida(
+            tipoBaneo = infoBaneo!!.first,
+            motivoBaneo = infoBaneo!!.second,
+            fechaFinBaneo = infoBaneo!!.third,
+            onDismiss = {
+                mostrarDialogoBaneo = false
+                infoBaneo = null
+            },
+            onVerInfoDesbaneo = {
+                mostrarDialogoBaneo = false
+                infoBaneo = null
+                navegarAInfoDesbaneo()
+            }
+        )
+    }
+}
+
+@Composable
+private fun DialogoCuentaSuspendida(
+    tipoBaneo: String,
+    motivoBaneo: String,
+    fechaFinBaneo: Long,
+    onDismiss: () -> Unit,
+    onVerInfoDesbaneo: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Block,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "🚫 Cuenta Suspendida",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (tipoBaneo == "temporal") {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "⏱️ Suspensión Temporal",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            if (fechaFinBaneo > 0L) {
+                                val fechaFin = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+                                    .format(java.util.Date(fechaFinBaneo))
+                                Text(
+                                    text = "Expira el: $fechaFin",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = "🔒 Suspensión Permanente",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+                
+                Text(
+                    text = "Motivo:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Text(
+                        text = motivoBaneo,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+                
+                HorizontalDivider()
+                
+                Text(
+                    text = "Si consideras que esto es un error o deseas apelar esta decisión, puedes contactar al administrador.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onVerInfoDesbaneo,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(Icons.Default.Info, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("¿Cómo desbanearme?")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        }
+    )
 }
 

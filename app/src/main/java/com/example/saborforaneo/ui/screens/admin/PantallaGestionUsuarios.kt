@@ -1,10 +1,13 @@
 package com.example.saborforaneo.ui.screens.admin
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -43,6 +46,10 @@ data class UsuarioAdmin(
     val fechaRegistro: Long = 0L,
     val esAdmin: Boolean = false,
     val estaBaneado: Boolean = false,
+    val tipoBaneo: String = "", // "temporal" o "permanente"
+    val motivoBaneo: String = "",
+    val fechaBaneo: Long = 0L,
+    val fechaFinBaneo: Long = 0L, // Solo para baneos temporales
     val ultimoAcceso: Long = 0L,
     val recetasComunidad: Int = 0
 )
@@ -108,6 +115,10 @@ class GestionUsuariosViewModel : ViewModel() {
                             fechaRegistro = fechaRegistro,
                             esAdmin = false,
                             estaBaneado = doc.getBoolean("estaBaneado") ?: false,
+                            tipoBaneo = doc.getString("tipoBaneo") ?: "",
+                            motivoBaneo = doc.getString("motivoBaneo") ?: "",
+                            fechaBaneo = doc.getLong("fechaBaneo") ?: 0L,
+                            fechaFinBaneo = doc.getLong("fechaFinBaneo") ?: 0L,
                             ultimoAcceso = ultimoAcceso,
                             recetasComunidad = recetasPorUsuario[uid] ?: 0
                         )
@@ -133,20 +144,43 @@ class GestionUsuariosViewModel : ViewModel() {
         }
     }
 
-    fun banearUsuario(uid: String, banear: Boolean) {
+    fun banearUsuario(uid: String, banear: Boolean, tipoBaneo: String = "permanente", motivoBaneo: String = "", fechaFinBaneo: Long = 0L) {
         viewModelScope.launch {
             try {
+                val updates = mutableMapOf<String, Any?>(
+                    "estaBaneado" to banear,
+                    "fechaBaneo" to if (banear) System.currentTimeMillis() else null
+                )
+                
+                if (banear) {
+                    updates["tipoBaneo"] = tipoBaneo
+                    updates["motivoBaneo"] = motivoBaneo
+                    if (tipoBaneo == "temporal") {
+                        updates["fechaFinBaneo"] = fechaFinBaneo
+                    }
+                } else {
+                    // Al desbanear, limpiar todos los campos relacionados
+                    updates["tipoBaneo"] = ""
+                    updates["motivoBaneo"] = ""
+                    updates["fechaFinBaneo"] = null
+                }
+                
                 firestore.collection("usuarios").document(uid)
-                    .update(mapOf(
-                        "estaBaneado" to banear,
-                        "fechaBaneo" to if (banear) System.currentTimeMillis() else null
-                    ))
+                    .update(updates)
                     .await()
 
                 // Actualizar lista local
                 _estado.value = _estado.value.copy(
                     usuarios = _estado.value.usuarios.map {
-                        if (it.uid == uid) it.copy(estaBaneado = banear) else it
+                        if (it.uid == uid) {
+                            it.copy(
+                                estaBaneado = banear,
+                                tipoBaneo = if (banear) tipoBaneo else "",
+                                motivoBaneo = if (banear) motivoBaneo else "",
+                                fechaBaneo = if (banear) System.currentTimeMillis() else 0L,
+                                fechaFinBaneo = if (banear && tipoBaneo == "temporal") fechaFinBaneo else 0L
+                            )
+                        } else it
                     },
                     totalBaneados = if (banear) _estado.value.totalBaneados + 1 else _estado.value.totalBaneados - 1,
                     usuariosActivos = if (banear) _estado.value.usuariosActivos - 1 else _estado.value.usuariosActivos + 1
@@ -397,7 +431,15 @@ fun PantallaGestionUsuarios(
                         ) { usuario ->
                             TarjetaUsuario(
                                 usuario = usuario,
-                                onBanear = { viewModel.banearUsuario(usuario.uid, !usuario.estaBaneado) },
+                                onBanear = { tipoBaneo, motivoBaneo, fechaFinBaneo ->
+                                    if (usuario.estaBaneado) {
+                                        // Desbanear
+                                        viewModel.banearUsuario(usuario.uid, false)
+                                    } else {
+                                        // Banear
+                                        viewModel.banearUsuario(usuario.uid, true, tipoBaneo, motivoBaneo, fechaFinBaneo)
+                                    }
+                                },
                                 onEliminar = { viewModel.eliminarUsuario(usuario.uid) }
                             )
                         }
@@ -435,7 +477,7 @@ fun EstadisticaUsuarioCard(titulo: String, valor: Int) {
 @Composable
 fun TarjetaUsuario(
     usuario: UsuarioAdmin,
-    onBanear: () -> Unit,
+    onBanear: (tipoBaneo: String, motivoBaneo: String, fechaFinBaneo: Long) -> Unit,
     onEliminar: () -> Unit
 ) {
     var mostrarDialogoBanear by remember { mutableStateOf(false) }
@@ -622,45 +664,51 @@ fun TarjetaUsuario(
 
     // Diálogo de banear/desbanear
     if (mostrarDialogoBanear) {
-        AlertDialog(
-            onDismissRequest = { mostrarDialogoBanear = false },
-            icon = {
-                Icon(
-                    imageVector = if (usuario.estaBaneado) Icons.Default.CheckCircle else Icons.Default.Block,
-                    contentDescription = null,
-                    tint = if (usuario.estaBaneado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                )
-            },
-            title = {
-                Text(if (usuario.estaBaneado) "¿Desbanear usuario?" else "¿Banear usuario?")
-            },
-            text = {
-                Text(
-                    if (usuario.estaBaneado)
-                        "El usuario \"${usuario.nombre}\" podrá volver a acceder a la aplicación."
-                    else
-                        "El usuario \"${usuario.nombre}\" no podrá acceder a la aplicación hasta que sea desbaneado."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onBanear()
-                        mostrarDialogoBanear = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (usuario.estaBaneado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+        if (usuario.estaBaneado) {
+            // Diálogo simple para desbanear
+            AlertDialog(
+                onDismissRequest = { mostrarDialogoBanear = false },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                ) {
-                    Text(if (usuario.estaBaneado) "Desbanear" else "Banear")
+                },
+                title = { Text("¿Desbanear usuario?") },
+                text = {
+                    Text("El usuario \"${usuario.nombre}\" podrá volver a acceder a la aplicación.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onBanear("", "", 0L)
+                            mostrarDialogoBanear = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Desbanear")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { mostrarDialogoBanear = false }) {
+                        Text("Cancelar")
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarDialogoBanear = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
+            )
+        } else {
+            // Diálogo avanzado para banear con opciones
+            DialogoBanearUsuario(
+                usuario = usuario,
+                onConfirm = { tipoBaneo, motivoBaneo, fechaFinBaneo ->
+                    onBanear(tipoBaneo, motivoBaneo, fechaFinBaneo)
+                    mostrarDialogoBanear = false
+                },
+                onDismiss = { mostrarDialogoBanear = false }
+            )
+        }
     }
 
     // Diálogo de eliminar
@@ -697,5 +745,275 @@ fun TarjetaUsuario(
                 }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DialogoBanearUsuario(
+    usuario: UsuarioAdmin,
+    onConfirm: (tipoBaneo: String, motivoBaneo: String, fechaFinBaneo: Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var tipoBaneo by remember { mutableStateOf("permanente") } // "temporal" o "permanente"
+    var motivoBaneo by remember { mutableStateOf("") }
+    var diasBaneo by remember { mutableStateOf("7") }
+    
+    val motivosPredefinidos = listOf(
+        "Violación de términos de servicio",
+        "Contenido inapropiado",
+        "Spam o publicidad no deseada",
+        "Acoso o comportamiento abusivo",
+        "Suplantación de identidad",
+        "Otro (especificar abajo)"
+    )
+    
+    var motivoSeleccionado by remember { mutableStateOf(motivosPredefinidos[0]) }
+    var mostrarCampoPersonalizado by remember { mutableStateOf(false) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(0.95f)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 600.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Block,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Text(
+                        text = "Banear Usuario",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                Text(
+                    text = "Usuario: ${usuario.nombre}",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                
+                HorizontalDivider()
+                
+                // Tipo de baneo
+                Text(
+                    text = "Tipo de suspensión",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { tipoBaneo = "temporal" },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = tipoBaneo == "temporal",
+                            onClick = { tipoBaneo = "temporal" }
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text("⏱️ Temporal", fontWeight = FontWeight.Medium)
+                            Text(
+                                "El usuario será desbaneado automáticamente",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { tipoBaneo = "permanente" },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = tipoBaneo == "permanente",
+                            onClick = { tipoBaneo = "permanente" }
+                        )
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text("🔒 Permanente", fontWeight = FontWeight.Medium)
+                            Text(
+                                "Requiere desbaneo manual del administrador",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+                
+                // Duración (solo para temporal)
+                androidx.compose.animation.AnimatedVisibility(visible = tipoBaneo == "temporal") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Duración del baneo",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        OutlinedTextField(
+                            value = diasBaneo,
+                            onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) diasBaneo = it },
+                            label = { Text("Días") },
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            supportingText = {
+                                val dias = diasBaneo.toIntOrNull() ?: 0
+                                if (dias > 0) {
+                                    val fechaFin = System.currentTimeMillis() + (dias * 24 * 60 * 60 * 1000L)
+                                    val formato = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                    Text("Expirará el: ${formato.format(Date(fechaFin))}")
+                                }
+                            }
+                        )
+                    }
+                }
+                
+                HorizontalDivider()
+                
+                // Motivo del baneo
+                Text(
+                    text = "Motivo de la suspensión",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    motivosPredefinidos.forEach { motivo ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    motivoSeleccionado = motivo
+                                    mostrarCampoPersonalizado = motivo.startsWith("Otro")
+                                    if (!mostrarCampoPersonalizado) {
+                                        motivoBaneo = motivo
+                                    }
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = motivoSeleccionado == motivo,
+                                onClick = {
+                                    motivoSeleccionado = motivo
+                                    mostrarCampoPersonalizado = motivo.startsWith("Otro")
+                                    if (!mostrarCampoPersonalizado) {
+                                        motivoBaneo = motivo
+                                    }
+                                }
+                            )
+                            Text(
+                                text = motivo,
+                                modifier = Modifier.padding(start = 8.dp),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+                
+                // Campo personalizado
+                androidx.compose.animation.AnimatedVisibility(visible = mostrarCampoPersonalizado) {
+                    OutlinedTextField(
+                        value = motivoBaneo,
+                        onValueChange = { motivoBaneo = it },
+                        label = { Text("Especifica el motivo") },
+                        placeholder = { Text("Describe el motivo del baneo...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 4
+                    )
+                }
+                
+                // Advertencia
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = "El usuario será expulsado inmediatamente y verá el motivo del baneo al intentar iniciar sesión.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                
+                // Botones
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancelar")
+                    }
+                    
+                    Button(
+                        onClick = {
+                            val motivoFinal = if (motivoBaneo.isBlank() && !mostrarCampoPersonalizado) {
+                                motivoSeleccionado
+                            } else {
+                                motivoBaneo.ifBlank { "Sin motivo especificado" }
+                            }
+                            
+                            val fechaFin = if (tipoBaneo == "temporal") {
+                                val dias = diasBaneo.toIntOrNull() ?: 7
+                                System.currentTimeMillis() + (dias * 24 * 60 * 60 * 1000L)
+                            } else {
+                                0L
+                            }
+                            
+                            onConfirm(tipoBaneo, motivoFinal, fechaFin)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        ),
+                        enabled = if (tipoBaneo == "temporal") diasBaneo.toIntOrNull() != null && diasBaneo.toInt() > 0 else true
+                    ) {
+                        Icon(Icons.Default.Block, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Banear")
+                    }
+                }
+            }
+        }
     }
 }

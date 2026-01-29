@@ -22,7 +22,11 @@ sealed class AuthState {
     data class Success(val user: FirebaseUser?) : AuthState()
     data class Error(val message: String) : AuthState()
     data class NecesitaContrasena(val email: String, val nombre: String, val idToken: String) : AuthState()
-    object UsuarioBaneado : AuthState()
+    data class UsuarioBaneado(
+        val tipoBaneo: String = "permanente", // "temporal" o "permanente"
+        val motivoBaneo: String = "Violación de términos de servicio",
+        val fechaFinBaneo: Long = 0L // Solo para baneos temporales
+    ) : AuthState()
 }
 
 class AuthViewModel : ViewModel() {
@@ -99,13 +103,50 @@ class AuthViewModel : ViewModel() {
             // Verificar si el usuario está baneado
             val estaBaneado = docSnapshot.getBoolean("estaBaneado") ?: false
             if (estaBaneado) {
+                // Obtener información del baneo
+                val tipoBaneo = docSnapshot.getString("tipoBaneo") ?: "permanente"
+                val motivoBaneo = docSnapshot.getString("motivoBaneo") ?: "Violación de términos de servicio"
+                val fechaFinBaneo = docSnapshot.getLong("fechaFinBaneo") ?: 0L
+                
+                // Si es baneo temporal, verificar si ya expiró
+                if (tipoBaneo == "temporal" && fechaFinBaneo > 0L) {
+                    val ahora = System.currentTimeMillis()
+                    if (ahora >= fechaFinBaneo) {
+                        // El baneo temporal ha expirado, desbanear automáticamente
+                        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            .collection("usuarios")
+                            .document(uid)
+                            .update(mapOf(
+                                "estaBaneado" to false,
+                                "tipoBaneo" to "",
+                                "motivoBaneo" to "",
+                                "fechaBaneo" to null,
+                                "fechaFinBaneo" to null
+                            ))
+                            .await()
+                        
+                        // Permitir que el usuario continúe
+                        val result = firestoreRepository.obtenerPerfilUsuario(uid)
+                        if (result.isSuccess) {
+                            val usuario = result.getOrNull()
+                            _usuarioFirestore.value = usuario
+                            _esAdmin.value = usuario?.rol == "admin" || usuario?.email == ADMIN_EMAIL
+                        }
+                        return true
+                    }
+                }
+                
                 // Cerrar sesión inmediatamente
                 auth.signOut()
                 googleSignInClient?.signOut()
                 _currentUser.value = null
                 _esAdmin.value = false
                 _usuarioFirestore.value = null
-                _authState.value = AuthState.UsuarioBaneado
+                _authState.value = AuthState.UsuarioBaneado(
+                    tipoBaneo = tipoBaneo,
+                    motivoBaneo = motivoBaneo,
+                    fechaFinBaneo = fechaFinBaneo
+                )
                 return false
             }
 
