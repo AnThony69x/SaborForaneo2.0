@@ -48,10 +48,10 @@ data class UsuarioAdmin(
     val estaBaneado: Boolean = false,
     val tipoBaneo: String = "", // "temporal" o "permanente"
     val motivoBaneo: String = "",
-    val fechaBaneo: Long = 0L,
-    val fechaFinBaneo: Long = 0L, // Solo para baneos temporales
+    val fechaBaneo: Long? = null,
+    val fechaFinBaneo: Long? = null, // Solo para baneos temporales
     val cuentaEliminada: Boolean = false,
-    val fechaEliminacion: Long = 0L,
+    val fechaEliminacion: Long? = null,
     val ultimoAcceso: Long = 0L,
     val recetasComunidad: Int = 0
 )
@@ -184,8 +184,8 @@ class GestionUsuariosViewModel : ViewModel() {
                                 estaBaneado = banear,
                                 tipoBaneo = if (banear) tipoBaneo else "",
                                 motivoBaneo = if (banear) motivoBaneo else "",
-                                fechaBaneo = if (banear) System.currentTimeMillis() else 0L,
-                                fechaFinBaneo = if (banear && tipoBaneo == "temporal") fechaFinBaneo else 0L
+                                fechaBaneo = if (banear) System.currentTimeMillis() else null,
+                                fechaFinBaneo = if (banear && tipoBaneo == "temporal") fechaFinBaneo else null
                             )
                         } else it
                     },
@@ -495,6 +495,7 @@ fun TarjetaUsuario(
 ) {
     var mostrarDialogoBanear by remember { mutableStateOf(false) }
     var mostrarDialogoEliminar by remember { mutableStateOf(false) }
+    var mostrarConfirmacionFinal by remember { mutableStateOf(false) }
 
     val fechaRegistro = remember(usuario.fechaRegistro) {
         if (usuario.fechaRegistro > 0) {
@@ -724,7 +725,7 @@ fun TarjetaUsuario(
         }
     }
 
-    // Diálogo de eliminar
+    // Diálogo de eliminar - Primera confirmación
     if (mostrarDialogoEliminar) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoEliminar = false },
@@ -737,24 +738,126 @@ fun TarjetaUsuario(
             },
             title = { Text("¿Eliminar usuario?") },
             text = {
-                Text("Esta acción eliminará permanentemente al usuario \"${usuario.nombre}\" y todos sus datos. No se puede deshacer.")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Esta acción eliminará permanentemente al usuario:",
+                        fontWeight = FontWeight.Medium
+                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Text(
+                            text = "${usuario.nombre}\n${usuario.email}",
+                            modifier = Modifier.padding(12.dp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "⚠️ Esta acción NO se puede deshacer.",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        onEliminar()
                         mostrarDialogoEliminar = false
+                        mostrarConfirmacionFinal = true
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Eliminar")
+                    Text("Continuar")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { mostrarDialogoEliminar = false }) {
                     Text("Cancelar")
+                }
+            }
+        )
+    }
+    
+    // Diálogo de confirmación final
+    if (mostrarConfirmacionFinal) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacionFinal = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = { 
+                Text(
+                    "⚠️ Confirmación Final",
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                ) 
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "¿Estás COMPLETAMENTE SEGURO?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "El usuario \"${usuario.nombre}\" será eliminado permanentemente y no podrá acceder nunca más a la aplicación.",
+                        fontSize = 14.sp
+                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "🗑️ Esta acción es IRREVERSIBLE",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = "No hay forma de recuperar la cuenta después",
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onEliminar()
+                        mostrarConfirmacionFinal = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("SÍ, ELIMINAR PERMANENTEMENTE")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { mostrarConfirmacionFinal = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("No, Cancelar", fontWeight = FontWeight.Bold)
                 }
             }
         )
