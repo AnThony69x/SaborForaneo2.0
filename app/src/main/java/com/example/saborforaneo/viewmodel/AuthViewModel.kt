@@ -27,6 +27,7 @@ sealed class AuthState {
         val motivoBaneo: String = "Violación de términos de servicio",
         val fechaFinBaneo: Long = 0L // Solo para baneos temporales
     ) : AuthState()
+    object CuentaEliminada : AuthState()
 }
 
 class AuthViewModel : ViewModel() {
@@ -93,12 +94,25 @@ class AuthViewModel : ViewModel() {
         try {
             val uid = auth.currentUser?.uid ?: return false
 
-            // Obtener documento directamente para verificar baneo
+            // Obtener documento directamente para verificar baneo y eliminación
             val docSnapshot = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("usuarios")
                 .document(uid)
                 .get()
                 .await()
+
+            // Verificar si la cuenta fue eliminada
+            val cuentaEliminada = docSnapshot.getBoolean("cuentaEliminada") ?: false
+            if (cuentaEliminada) {
+                // Cerrar sesión inmediatamente
+                auth.signOut()
+                googleSignInClient?.signOut()
+                _currentUser.value = null
+                _esAdmin.value = false
+                _usuarioFirestore.value = null
+                _authState.value = AuthState.CuentaEliminada
+                return false
+            }
 
             // Verificar si el usuario está baneado
             val estaBaneado = docSnapshot.getBoolean("estaBaneado") ?: false

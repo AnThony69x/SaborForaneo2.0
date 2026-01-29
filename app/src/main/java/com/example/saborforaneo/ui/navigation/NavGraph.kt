@@ -52,9 +52,9 @@ fun GrafoNavegacion(
     val homeViewModel = remember { HomeViewModel(context) }
     val authState by authViewModel.authState.collectAsState()
 
-    // Observar si el usuario está baneado y redirigir al login
+    // Observar si el usuario está baneado o eliminado y redirigir al login
     LaunchedEffect(authState) {
-        if (authState is AuthState.UsuarioBaneado) {
+        if (authState is AuthState.UsuarioBaneado || authState is AuthState.CuentaEliminada) {
             controladorNav.navigate(Rutas.Login.ruta) {
                 popUpTo(0) { inclusive = true }
             }

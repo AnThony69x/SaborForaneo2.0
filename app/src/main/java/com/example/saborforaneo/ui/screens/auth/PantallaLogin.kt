@@ -143,6 +143,14 @@ fun PantallaLogin(
                 )
                 authViewModel.resetAuthState()
             }
+            is AuthState.CuentaEliminada -> {
+                mensajeError = "Tu cuenta ha sido eliminada"
+                snackbarHostState.showSnackbar(
+                    message = "🗑️ Tu cuenta ha sido eliminada por el administrador",
+                    duration = SnackbarDuration.Long
+                )
+                authViewModel.resetAuthState()
+            }
             else -> {}
         }
     }
@@ -462,6 +470,16 @@ fun PantallaLogin(
                 navegarAInfoDesbaneo()
             }
         )
+    }
+    
+    // Mostrar diálogo de cuenta eliminada
+    LaunchedEffect(authState) {
+        if (authState is AuthState.CuentaEliminada) {
+            snackbarHostState.showSnackbar(
+                message = "❌ Tu cuenta ha sido eliminada permanentemente por el administrador",
+                duration = SnackbarDuration.Long
+            )
+        }
     }
 }
 

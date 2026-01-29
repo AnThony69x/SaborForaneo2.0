@@ -26,7 +26,9 @@ data class Usuario(
     val tipoBaneo: String = "", // "temporal" o "permanente"
     val motivoBaneo: String = "",
     val fechaBaneo: Long = 0L,
-    val fechaFinBaneo: Long = 0L // Solo para baneos temporales
+    val fechaFinBaneo: Long = 0L, // Solo para baneos temporales
+    val cuentaEliminada: Boolean = false,
+    val fechaEliminacion: Long = 0L
 )
 
 class FirestoreRepository {

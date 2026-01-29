@@ -50,6 +50,8 @@ data class UsuarioAdmin(
     val motivoBaneo: String = "",
     val fechaBaneo: Long = 0L,
     val fechaFinBaneo: Long = 0L, // Solo para baneos temporales
+    val cuentaEliminada: Boolean = false,
+    val fechaEliminacion: Long = 0L,
     val ultimoAcceso: Long = 0L,
     val recetasComunidad: Int = 0
 )
@@ -90,8 +92,11 @@ class GestionUsuariosViewModel : ViewModel() {
                     try {
                         val esAdmin = doc.getBoolean("esAdmin") ?: (doc.getString("rol") == "admin")
 
-                        // Excluir admins de la lista
+                        // Excluir admins y cuentas eliminadas de la lista
                         if (esAdmin) return@mapNotNull null
+                        
+                        val cuentaEliminada = doc.getBoolean("cuentaEliminada") ?: false
+                        if (cuentaEliminada) return@mapNotNull null
 
                         val uid = doc.id
 
@@ -119,6 +124,8 @@ class GestionUsuariosViewModel : ViewModel() {
                             motivoBaneo = doc.getString("motivoBaneo") ?: "",
                             fechaBaneo = doc.getLong("fechaBaneo") ?: 0L,
                             fechaFinBaneo = doc.getLong("fechaFinBaneo") ?: 0L,
+                            cuentaEliminada = doc.getBoolean("cuentaEliminada") ?: false,
+                            fechaEliminacion = doc.getLong("fechaEliminacion") ?: 0L,
                             ultimoAcceso = ultimoAcceso,
                             recetasComunidad = recetasPorUsuario[uid] ?: 0
                         )
@@ -196,10 +203,16 @@ class GestionUsuariosViewModel : ViewModel() {
     fun eliminarUsuario(uid: String) {
         viewModelScope.launch {
             try {
-                // Eliminar documento del usuario
-                firestore.collection("usuarios").document(uid).delete().await()
+                // Marcar como eliminado en lugar de borrar completamente
+                firestore.collection("usuarios").document(uid)
+                    .update(mapOf(
+                        "cuentaEliminada" to true,
+                        "fechaEliminacion" to System.currentTimeMillis(),
+                        "estaBaneado" to false // Limpiar estado de baneo
+                    ))
+                    .await()
 
-                // Actualizar lista local
+                // Actualizar lista local - eliminar de la vista
                 val usuarioEliminado = _estado.value.usuarios.find { it.uid == uid }
                 _estado.value = _estado.value.copy(
                     usuarios = _estado.value.usuarios.filter { it.uid != uid },
